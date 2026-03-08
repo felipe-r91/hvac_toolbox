@@ -20,7 +20,7 @@ export function NavigationTabs({ onOpenAdd }: Props) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white p-2 pb-[env(safe-area-inset-bottom)] shadow-lg ring-1 ring-slate-200">
-      <div className="grid grid-cols-5 gap-2 mb-2">
+      <div className="grid grid-cols-5 gap-2 mb-6">
         {tabs.map((tab) => {
           const isAdd = tab.label === "Add";
           const active = !isAdd && location.pathname.startsWith(tab.to);
