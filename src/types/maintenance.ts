@@ -31,6 +31,8 @@ export type MachineMeta = {
   model: string;
   serialNumber: string;
   type: string;
+  operatingStatus?: "online" | "down";
+  downtimeReason?: string;
 };
 
 export type MaintenanceTask = {
@@ -74,6 +76,22 @@ export type NewMachinePayload = {
   type: string;
 };
 
+export type MaintenanceReport = {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  machineId: string;
+  machineTag: string;
+  machineModel: string;
+  machineType: string;
+  machineLocation: string;
+  completedAt: string;
+  overallStatus: "online" | "down";
+  downtimeReason?: string;
+  tasks: MaintenanceTask[];
+};
+
 export type FleetData = {
   vessels: Vessel[];
+  reports: MaintenanceReport[];
 };

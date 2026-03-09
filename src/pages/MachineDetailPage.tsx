@@ -1,11 +1,12 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { type MachinePlan, type MachineMeta, type MaintenanceTask, type Vessel } from "../types/maintenance";
 import { groupTasks } from "../utils/groupTasks";
-import { downloadJsonFile } from "../utils/downloadJson";
 import { MachineHeader } from "../components/MachineHeader";
 import { SummaryCards } from "../components/SummaryCards";
 import { CategorySection } from "../components/CategorySection";
+import { MachineStatusField } from "../components/MachineStatusField";
 
 type Props = {
   vessels: Vessel[];
@@ -15,6 +16,7 @@ type Props = {
   onTogglePendingOnly: () => void;
   onUpdateTask: (task: MaintenanceTask) => void;
   onUpdateMachineField: (field: keyof MachineMeta, value: string) => void;
+  onFinishMaintenance: (vesselId: string, machineId: string) => void;
 };
 
 export function MachineDetailPage({
@@ -24,22 +26,45 @@ export function MachineDetailPage({
   onSearchChange,
   onTogglePendingOnly,
   onUpdateTask,
+  onUpdateMachineField,
+  onFinishMaintenance,
 }: Props) {
   const { vesselId, machineId } = useParams();
-  const vessel = vessels.find((item) => item.id === vesselId);
-  const plan = vessel?.machines.find((item) => item.machine.id === machineId) as MachinePlan | undefined;
 
-  if (!plan) {
+  const vessel = vessels.find((item) => item.id === vesselId);
+  const plan = vessel?.machines.find(
+    (item) => item.machine.id === machineId
+  ) as MachinePlan | undefined;
+
+  if (!plan || !vesselId || !machineId) {
     return <div className="p-6">Machine not found.</div>;
   }
 
   const grouped = groupTasks(plan.tasks, search, pendingOnly);
 
+  const allChecked = useMemo(
+    () => plan.tasks.length > 0 && plan.tasks.every((task) => task.checked),
+    [plan.tasks]
+  );
+
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-4">
-        <BackButton />
+    <section className="space-y-4">
+      <BackButton />
+
       <MachineHeader machine={plan.machine} />
+
+      <MachineStatusField
+        value={plan.machine.operatingStatus || "online"}
+        downtimeReason={plan.machine.downtimeReason || ""}
+        onStatusChange={(value) => {
+          onUpdateMachineField("operatingStatus", value);
+
+          if (value === "online") {
+            onUpdateMachineField("downtimeReason", "");
+          }
+        }}
+        onReasonChange={(value) => onUpdateMachineField("downtimeReason", value)}
+      />
 
       <SummaryCards tasks={plan.tasks} />
 
@@ -60,14 +85,6 @@ export function MachineDetailPage({
             >
               {pendingOnly ? "Show all" : "Pending only"}
             </button>
-
-            <button
-              type="button"
-              onClick={() => downloadJsonFile(plan, `${plan.machine.tag || "machine"}-maintenance.json`)}
-              className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-slate-900 ring-1 ring-slate-300"
-            >
-              Export JSON
-            </button>
           </div>
         </div>
       </section>
@@ -80,7 +97,17 @@ export function MachineDetailPage({
           onUpdateTask={onUpdateTask}
         />
       ))}
-      </div>
-    </main>
+
+      <button
+        type="button"
+        disabled={!allChecked}
+        onClick={() => onFinishMaintenance(vesselId, machineId)}
+        className={`w-full rounded-2xl px-4 py-3 text-sm font-medium text-white ${
+          allChecked ? "bg-slate-900" : "bg-slate-300"
+        }`}
+      >
+        Finish maintenance
+      </button>
+    </section>
   );
 }

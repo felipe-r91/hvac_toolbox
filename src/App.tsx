@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { loadFleet, resetFleet, saveFleet } from "./storage/maintenanceStorage";
 import {
   type FleetData,
   type MachineMeta,
+  type MaintenanceReport,
   type MaintenanceTask,
   type NewMachinePayload,
   type NewVesselPayload,
@@ -14,7 +15,8 @@ import { ShipMachinesPage } from "./pages/ShipMachinesPage";
 import { MachineDetailPage } from "./pages/MachineDetailPage";
 import { MachinesPage } from "./pages/MachinesPage";
 import { SyncPage } from "./pages/SyncPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { ReportDetailPage } from "./pages/ReportDetailPage";
 import { createId } from "./utils/createId";
 
 function MachineDetailRoute({
@@ -25,6 +27,7 @@ function MachineDetailRoute({
   onTogglePendingOnly,
   onUpdateTask,
   onUpdateMachineField,
+  onFinishMaintenance,
 }: {
   fleet: FleetData;
   search: string;
@@ -32,7 +35,13 @@ function MachineDetailRoute({
   onSearchChange: (value: string) => void;
   onTogglePendingOnly: () => void;
   onUpdateTask: (vesselId: string, machineId: string, task: MaintenanceTask) => void;
-  onUpdateMachineField: (vesselId: string, machineId: string, field: keyof MachineMeta, value: string) => void;
+  onUpdateMachineField: (
+    vesselId: string,
+    machineId: string,
+    field: keyof MachineMeta,
+    value: string
+  ) => void;
+  onFinishMaintenance: (vesselId: string, machineId: string) => void;
 }) {
   const { vesselId = "", machineId = "" } = useParams();
 
@@ -44,7 +53,40 @@ function MachineDetailRoute({
       onSearchChange={onSearchChange}
       onTogglePendingOnly={onTogglePendingOnly}
       onUpdateTask={(task) => onUpdateTask(vesselId, machineId, task)}
-      onUpdateMachineField={(field, value) => onUpdateMachineField(vesselId, machineId, field, value)}
+      onUpdateMachineField={(field, value) =>
+        onUpdateMachineField(vesselId, machineId, field, value)
+      }
+      onFinishMaintenance={onFinishMaintenance}
+    />
+  );
+}
+
+function MachineDetailRouteWithNavigation(props: {
+  fleet: FleetData;
+  search: string;
+  pendingOnly: boolean;
+  onSearchChange: (value: string) => void;
+  onTogglePendingOnly: () => void;
+  onUpdateTask: (vesselId: string, machineId: string, task: MaintenanceTask) => void;
+  onUpdateMachineField: (
+    vesselId: string,
+    machineId: string,
+    field: keyof MachineMeta,
+    value: string
+  ) => void;
+  onCreateReport: (vesselId: string, machineId: string) => string | null;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <MachineDetailRoute
+      {...props}
+      onFinishMaintenance={(vesselId, machineId) => {
+        const reportId = props.onCreateReport(vesselId, machineId);
+        if (reportId) {
+          navigate(`/reports/${reportId}`);
+        }
+      }}
     />
   );
 }
@@ -63,6 +105,7 @@ export default function App() {
 
   const addVessel = (payload: NewVesselPayload) => {
     setFleet((current) => ({
+      ...current,
       vessels: [
         ...current.vessels,
         {
@@ -74,43 +117,75 @@ export default function App() {
         },
       ],
     }));
-    console.log(fleet)
   };
 
-  const addMachine = (payload: NewMachinePayload & { tasks: MaintenanceTask[] }) => {
-  setFleet((current) => ({
-    vessels: current.vessels.map((vessel) => {
-      if (vessel.id !== payload.vesselId) return vessel;
+  const editVessel = (payload: {
+    id: string;
+    name: string;
+    imoNumber: string;
+    description: string;
+  }) => {
+    setFleet((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) =>
+        vessel.id === payload.id
+          ? {
+              ...vessel,
+              name: payload.name,
+              imoNumber: payload.imoNumber,
+              description: payload.description,
+            }
+          : vessel
+      ),
+    }));
+  };
 
-      return {
-        ...vessel,
-        machines: [
-          ...vessel.machines,
-          {
-            machine: {
-              id: createId(),
-              location: payload.location,
-              tag: payload.tag,
-              model: payload.model,
-              serialNumber: payload.serialNumber,
-              type: payload.type,
+  const deleteVessel = (vesselId: string) => {
+    setFleet((current) => ({
+      ...current,
+      vessels: current.vessels.filter((vessel) => vessel.id !== vesselId),
+      reports: current.reports.filter((report) => report.vesselId !== vesselId),
+    }));
+  };
+
+  const addMachine = (payload: NewMachinePayload) => {
+    setFleet((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) => {
+        if (vessel.id !== payload.vesselId) return vessel;
+
+        return {
+          ...vessel,
+          machines: [
+            ...vessel.machines,
+            {
+              machine: {
+                id: createId(),
+                location: payload.location,
+                tag: payload.tag,
+                model: payload.model,
+                serialNumber: payload.serialNumber,
+                type: payload.type,
+              },
+              tasks: [],
             },
-            tasks: payload.tasks.map((entry) => ({ ...entry })),
-          },
-        ],
-      };
-    }),
-  }));
-};
+          ],
+        };
+      }),
+    }));
+  };
 
   const updateTask = (vesselId: string, machineId: string, task: MaintenanceTask) => {
     setFleet((current) => ({
+      ...current,
       vessels: current.vessels.map((vessel) => {
         if (vessel.id !== vesselId) return vessel;
+
         return {
           ...vessel,
           machines: vessel.machines.map((plan) => {
             if (plan.machine.id !== machineId) return plan;
+
             return {
               ...plan,
               tasks: plan.tasks.map((item) => (item.id === task.id ? task : item)),
@@ -121,14 +196,22 @@ export default function App() {
     }));
   };
 
-  const updateMachineField = (vesselId: string, machineId: string, field: keyof MachineMeta, value: string) => {
+  const updateMachineField = (
+    vesselId: string,
+    machineId: string,
+    field: keyof MachineMeta,
+    value: string
+  ) => {
     setFleet((current) => ({
+      ...current,
       vessels: current.vessels.map((vessel) => {
         if (vessel.id !== vesselId) return vessel;
+
         return {
           ...vessel,
           machines: vessel.machines.map((plan) => {
             if (plan.machine.id !== machineId) return plan;
+
             return {
               ...plan,
               machine: {
@@ -142,33 +225,67 @@ export default function App() {
     }));
   };
 
-  const editVessel = (payload: {
-  id: string;
-  name: string;
-  imoNumber: string;
-  description: string;
-}) => {
-  setFleet((current) => ({
-    vessels: current.vessels.map((vessel) =>
-      vessel.id === payload.id
-        ? {
-            ...vessel,
-            name: payload.name,
-            imoNumber: payload.imoNumber,
-            description: payload.description,
-          }
-        : vessel
-    ),
+  const createReport = (vesselId: string, machineId: string) => {
+  const vessel = fleet.vessels.find((item) => item.id === vesselId);
+  const plan = vessel?.machines.find((item) => item.machine.id === machineId);
+
+  if (!vessel || !plan) return null;
+
+  const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
+
+  const report: MaintenanceReport = {
+    id: createId(),
+    vesselId: vessel.id,
+    vesselName: vessel.name,
+    machineId: plan.machine.id,
+    machineTag: plan.machine.tag,
+    machineModel: plan.machine.model,
+    machineType: plan.machine.type,
+    machineLocation: plan.machine.location,
+    completedAt: new Date().toISOString(),
+    overallStatus: faultCount > 0 ? "down" : "online",
+    downtimeReason: plan.machine.downtimeReason || "",
+    tasks: plan.tasks.map((task) => ({ ...task })),
+  };
+
+  const resetTasks = plan.tasks.map((task) => ({
+    ...task,
+    checked: false,
+    status: "pending" as const,
+    notes: "",
+    measuredValue: "",
+    completedAt: undefined,
   }));
+
+  setFleet((current) => ({
+    ...current,
+    reports: [report, ...current.reports],
+    vessels: current.vessels.map((currentVessel) => {
+      if (currentVessel.id !== vesselId) return currentVessel;
+
+      return {
+        ...currentVessel,
+        machines: currentVessel.machines.map((currentPlan) => {
+          if (currentPlan.machine.id !== machineId) return currentPlan;
+
+          return {
+            ...currentPlan,
+            machine: {
+              ...currentPlan.machine,
+              operatingStatus: "online",
+              downtimeReason: "",
+            },
+            tasks: resetTasks,
+          };
+        }),
+      };
+    }),
+  }));
+
+  return report.id;
 };
 
-const deleteVessel = (vesselId: string) => {
-  setFleet((current) => ({
-    vessels: current.vessels.filter((vessel) => vessel.id !== vesselId),
-  }));
-};
-
-const editMachine = (payload: {
+  const editMachine = (payload: {
   vesselId: string;
   machineId: string;
   location: string;
@@ -179,6 +296,7 @@ const editMachine = (payload: {
   tasks: MaintenanceTask[];
 }) => {
   setFleet((current) => ({
+    ...current,
     vessels: current.vessels.map((vessel) => {
       if (vessel.id !== payload.vesselId) return vessel;
 
@@ -207,6 +325,7 @@ const editMachine = (payload: {
 
 const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
   setFleet((current) => ({
+    ...current,
     vessels: current.vessels.map((vessel) => {
       if (vessel.id !== payload.vesselId) return vessel;
 
@@ -217,6 +336,9 @@ const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
         ),
       };
     }),
+    reports: current.reports.filter(
+      (report) => report.machineId !== payload.machineId
+    ),
   }));
 };
 
@@ -243,16 +365,37 @@ const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
     >
       <Routes>
         <Route path="/" element={<Navigate to="/vessels" replace />} />
-        <Route path="/vessels" element={<VesselsPage vessels={fleet.vessels} onEditVessel={editVessel} onDeleteVessel={deleteVessel} />} />
-        <Route path="/machines" element={<MachinesPage vessels={fleet.vessels} onEditMachine={editMachine} onDeleteMachine={deleteMachine} />} />
+        <Route
+          path="/vessels"
+          element={
+            <VesselsPage
+              vessels={fleet.vessels}
+              onEditVessel={editVessel}
+              onDeleteVessel={deleteVessel}
+            />
+          }
+        />
+        <Route path="/machines" element={<MachinesPage vessels={fleet.vessels}
+      onEditMachine={editMachine}
+      onDeleteMachine={deleteMachine}/>} />
         <Route path="/add" element={<Navigate to="/vessels" replace />} />
         <Route path="/sync" element={<SyncPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/vessels/:vesselId/machines" element={<ShipMachinesPage vessels={fleet.vessels} />} />
+        <Route
+          path="/reports"
+          element={<ReportsPage vessels={fleet.vessels} reports={fleet.reports} />}
+        />
+        <Route
+          path="/reports/:reportId"
+          element={<ReportDetailPage reports={fleet.reports} />}
+        />
+        <Route
+          path="/vessels/:vesselId/machines"
+          element={<ShipMachinesPage vessels={fleet.vessels} />}
+        />
         <Route
           path="/vessels/:vesselId/machines/:machineId"
           element={
-            <MachineDetailRoute
+            <MachineDetailRouteWithNavigation
               fleet={fleet}
               search={search}
               pendingOnly={pendingOnly}
@@ -260,6 +403,7 @@ const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
               onTogglePendingOnly={() => setPendingOnly((value) => !value)}
               onUpdateTask={updateTask}
               onUpdateMachineField={updateMachineField}
+              onCreateReport={createReport}
             />
           }
         />

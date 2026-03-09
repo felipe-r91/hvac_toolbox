@@ -1,4 +1,4 @@
-import { LuBoxes, LuPlus, LuSettings } from "react-icons/lu";
+import { LuBoxes, LuFileText, LuPlus } from "react-icons/lu";
 import { RiShipLine } from "react-icons/ri";
 import { BiWorld } from "react-icons/bi";
 import { Link, useLocation } from "react-router-dom";
@@ -8,7 +8,7 @@ const tabs = [
   { label: "Machines", to: "/machines" , icon: <><LuBoxes size={28} /></>},
   { label: "Add", to: "/add" , icon: <><LuPlus size={28} /></>},
   { label: "Sync Data", to: "/sync" , icon: <><BiWorld size={28} /></>},
-  { label: "Settings", to: "/settings" , icon: <><LuSettings size={28} /></>},
+  { label: "Settings", to: "/reports" , icon: <><LuFileText size={28} /></>},
 ];
 
 type Props = {
