@@ -41,7 +41,7 @@ export function ReportDetailPage({ reports }: Props) {
           <p className="my-2 mr-2 text-sm font-medium text-slate-700">
             Overall status:
           </p>
-          <p className="my-2 text-sm font-medium text-red-500">
+          <p className={`my-2 text-sm font-medium ${report.overallStatus === "down" ? "text-red-500" : "text-green-500"}`}>
             {report.overallStatus.toUpperCase()}
           </p>
         </div>
