@@ -80,7 +80,7 @@ export function ReportsPage({ vessels, reports }: Props) {
                               {plan.machine.location}
                             </p>
                             <p className="text-sm text-slate-500">
-                              {plan.machine.model} · {plan.machine.type}
+                              {plan.machine.model} · {plan.machine.starterType} ·{plan.machine.type}
                             </p>
                           </div>
 

@@ -17,6 +17,7 @@ type Props = {
     model: string;
     serialNumber: string;
     type: string;
+    starterType: string;
     tasks: MaintenanceTask[];
   }) => void;
   onDeleteMachine: (payload: { vesselId: string; machineId: string }) => void;
@@ -109,7 +110,7 @@ export function MachinesPage({ vessels, onEditMachine, onDeleteMachine }: Props)
           const tasks =
             payload.model === oldModel
               ? editingMachine.plan.tasks
-              : createTasksFromModel(payload.model);
+              : createTasksFromModel(payload.model, payload.starterType);
 
           onEditMachine({
             ...payload,

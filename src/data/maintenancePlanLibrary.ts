@@ -14,6 +14,7 @@ const task = (id: string, category: string, taskName: string, tool = "") => ({
 export const maintenancePlanLibrary: Record<string, Omit<MachinePlan, "machine">> = {
   VSM89: {
     tasks: [
+      task("vsm89-d-000", "Daily", "Check run hours", "Visual"),
       task("vsm89-d-001", "Daily", "Check oil level in oil receiver", "Visual"),
       task("vsm89-d-002", "Daily", "Verify refrigerant level in condenser (≥150 mm)", "Visual"),
       task("vsm89-d-003", "Daily", "Check evaporating & condensing pressures", "Op, Visual"),
@@ -51,11 +52,6 @@ export const maintenancePlanLibrary: Record<string, Omit<MachinePlan, "machine">
       task("vsm89-a-008", "Annual", "Revalidate SE2200 cutout limits & delays", "Visual, OP"),
       task("vsm89-a-009", "Annual", "Recalibrate all sensors (PT100, pressure, oil)", "OP, External Temp Sensor"),
       task("vsm89-a-010", "Annual", "Inspect sequence control (multi-chiller systems)", "OP"),
-      task("vsm89-vsd-001", "VSD Maintenance", "Clean/replace air filters", "Mechanic Tools"),
-      task("vsm89-vsd-002", "VSD Maintenance", "Inspect/replace cooling fans", "Mechanic Tools"),
-      task("vsm89-vsd-003", "VSD Maintenance", "Clean heatsinks", "Mechanic Tools"),
-      task("vsm89-vsd-004", "VSD Maintenance", "Inspect capacitors (reform/replace)", "Visual, Multimeter"),
-      task("vsm89-vsd-005", "VSD Maintenance", "Check IGBT modules & grounding", "Multimeter"),
       task("vsm89-2y-001", "2-Year / Shipyard", "Replace hoses, gaskets, seals (PM2/PM3 rules)", "Mechanic Tools"),
       task("vsm89-2y-002", "2-Year / Shipyard", "Replace solenoid coils, blind covers, hoses", "Mechanic Tools"),
       task("vsm89-2y-003", "2-Year / Shipyard", "Full compressor internal inspection if needed", "Workshop Overhaul"),
@@ -69,6 +65,7 @@ export const maintenancePlanLibrary: Record<string, Omit<MachinePlan, "machine">
   },
   VSM2817: {
     tasks: [
+      task("vsm2817-d-000", "Daily", "Check run hours", "Visual"),
       task("vsm2817-d-001", "Daily", "Check oil pressure difference <1 bar", "Visual"),
       task("vsm2817-d-002", "Daily", "Check oil level in sight glasses", "Visual"),
       task("vsm2817-d-003", "Daily", "Verify refrigerant level >=150 mm in condenser", "Visual"),
@@ -112,6 +109,7 @@ export const maintenancePlanLibrary: Record<string, Omit<MachinePlan, "machine">
   },
   VSM151: {
     tasks: [
+      task("vsm151-d-000", "Daily", "Check run hours", "Visual"),
       task("vsm151-d-001", "Daily", "Check oil level visible in oil receiver sight glasses (≥1 of 2)", "Visual"),
       task("vsm151-d-002", "Daily", "Verify oil heater operating; oil temp ≥35°C before start", "Visual"),
       task("vsm151-d-003", "Daily", "Read condensing/evaporating pressures (PI01/PI02) and compare to OP", "Visual, External Temp Sensor"),
@@ -154,9 +152,6 @@ export const maintenancePlanLibrary: Record<string, Omit<MachinePlan, "machine">
       task("vsm151-ol-002", "Off-limit Operation", "Apply high cooling-water temperature procedure", "OP"),
       task("vsm151-ol-003", "Off-limit Operation", "Apply brine low-level / low-flow protective procedure", "Visual"),
       task("vsm151-ol-004", "Off-limit Operation", "Apply high condensing pressure procedure", "Visual"),
-      task("vsm151-vsd-001", "VSD Maintenance", "Check heatsinks for debris and hot spots; clean", "Mechanic Tools"),
-      task("vsm151-vsd-002", "VSD Maintenance", "Inspect capacitors; reform/replace per age/runtime; check leakage/derating", "Mechanic Tools"),
-      task("vsm151-vsd-003", "VSD Maintenance", "Verify grounding and fibre-optic integrity; ensure separate PE, correct bend radius", "Mechanic Tools, Multimeter"),
       task("vsm151-br-001", "Brine System", "Check expansion tank level and low-level switch operation; inspect level measuring device", "Visual, Manual"),
       task("vsm151-br-002", "Brine System", "Verify corrosion inhibitor concentration and MSDS; sample brine and log", "Multimeter"),
       task("vsm151-br-003", "Brine System", "Operate 3-way regulating valves (all decks/rooms) and actuators; check respiration/positioners", "Multimeter"),
@@ -172,15 +167,69 @@ export const maintenancePlanLibrary: Record<string, Omit<MachinePlan, "machine">
       task("vsm151-f-001", "Fault-finding", "Prepare systematic fault tracing checklist (high condensing P, low evaporating P, high discharge T, etc.)", "Visual"),
     ],
   },
+
+  VSD: {
+    tasks: [
+      
+        task("vsd-001", "VSD Maintenance", "Clean/replace air filters", "Mechanic Tools"),
+        task("vsd-002", "VSD Maintenance", "Inspect/replace cooling fans", "Mechanic Tools"),
+        task("vsd-003", "VSD Maintenance", "Clean heatsinks", "Mechanic Tools"),
+        task("vsd-004", "VSD Maintenance", "Inspect capacitors (reform/replace)", "Visual, Multimeter"),
+        task("vsd-005", "VSD Maintenance", "Check IGBT modules & grounding", "Multimeter"),
+        task("vsd-006", "VSD Maintenance", "Thermography", "Multimeter"),
+        task("vsd-007", "VSD Maintenance", "Check Parameters", "Multimeter"),
+        task("vsd-008", "VSD Maintenance", "Check Circuit Breakers", "Multimeter"),
+      
+    ]
+  },
+
+  EM: {
+    tasks: [
+      
+        task("em-001", "EM Starter Maintenance", "Clean/replace air filters", "Mechanic Tools"),
+        task("em-002", "EM Starter Maintenance", "Inspect/replace cooling fans", "Mechanic Tools"),
+        task("em-003", "EM Starter Maintenance", "Inspect Power Wiring", "Mechanic Tools"),
+        task("em-004", "EM Starter Maintenance", "Thermography", "Visual, Multimeter"),
+        task("em-005", "EM Starter Maintenance", "Inspect Timer (if applicable)", "Visual, Multimeter"),
+        task("em-006", "EM Starter Maintenance", "Check grounding", "Multimeter"),
+        task("em-007", "EM Starter Maintenance", "Check Circuit Breakers", "Multimeter"),
+      
+    ]
+  },
+
+  SSS: {
+    tasks: [
+      
+        task("sss-001", "SSS Maintenance", "Clean/replace air filters", "Mechanic Tools"),
+        task("sss-002", "SSS Maintenance", "Inspect/replace cooling fans", "Mechanic Tools"),
+        task("sss-003", "SSS Maintenance", "Clean heatsinks", "Mechanic Tools"),
+        task("sss-004", "SSS Maintenance", "Check Parameters", "Visual, Multimeter"),
+        task("sss-005", "SSS Maintenance", "Check grounding", "Multimeter"),
+        task("sss-006", "SSS Maintenance", "Thermography", "Multimeter"),
+        task("sss-007", "SSS Maintenance", "Check Power Wiring", "Multimeter"),
+        task("sss-008", "SSS Maintenance", "Check Circuit Breakers", "Multimeter"),
+      
+    ]
+  }
 };
 
-export const availableMachineModels = Object.keys(maintenancePlanLibrary);
+export const availableStartersModels = ["VSD", "EM", "SSS"] as const;
 
-export function createTasksFromModel(model: string): MaintenanceTask[] {
-  const plan = maintenancePlanLibrary[model];
-  if (!plan) return [];
+export const availableMachineModels = Object.keys(maintenancePlanLibrary).filter(
+  (name) => !availableStartersModels.includes(name as (typeof availableStartersModels)[number])
+);
 
-  return plan.tasks.map((item) => ({
+
+//export const availableMachineModels = Object.keys(maintenancePlanLibrary).filter((name) => !name.match("VSD"));
+
+export function createTasksFromModel(model: string, starter: string): MaintenanceTask[] {
+  const machinePlan = maintenancePlanLibrary[model];
+  const starterPlan = maintenancePlanLibrary[starter];
+
+  if (!machinePlan) return [];
+  if (!starterPlan) return [];
+
+  return [...machinePlan.tasks, ...starterPlan.tasks].map((item) => ({
     ...item,
     checked: false,
     status: "pending",

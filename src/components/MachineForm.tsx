@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { availableMachineModels, maintenancePlanLibrary } from "../data/maintenancePlanLibrary";
-import { type NewMachinePayload, type Vessel } from "../types/maintenance";
+import { availableMachineModels, availableStartersModels, createTasksFromModel } from "../data/maintenancePlanLibrary";
+import { type MaintenanceTask, type NewMachinePayload, type Vessel } from "../types/maintenance";
 
 type Props = {
   vessels: Vessel[];
-  onSubmit: (payload: NewMachinePayload & { tasks: typeof maintenancePlanLibrary.VSM89.tasks }) => void;
+  onSubmit: (payload: NewMachinePayload & { tasks: MaintenanceTask[] }) => void;
 };
 
 export function MachineForm({ vessels, onSubmit }: Props) {
   const [vesselId, setVesselId] = useState(vessels[0]?.id || "");
   const [location, setLocation] = useState("");
   const [tag, setTag] = useState("");
-  const [model, setModel] = useState(availableMachineModels[0] || "");
+  const [model, setModel] = useState<string>(availableMachineModels[0] || "");
   const [serialNumber, setSerialNumber] = useState("");
+  const [starterType, setStarterType] = useState<string>(availableStartersModels[0] || "");
   const [type, setType] = useState("Chiller");
 
   const hasVessels = useMemo(() => vessels.length > 0, [vessels.length]);
@@ -58,6 +59,20 @@ export function MachineForm({ vessels, onSubmit }: Props) {
           ))}
         </select>
       </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-slate-600">Starter Type</span>
+        <select
+          value={starterType}
+          onChange={(e) => setStarterType(e.target.value)}
+          className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+        >
+          {availableStartersModels.map((starterModel) => (
+            <option key={starterModel} value={starterModel}>
+              {starterModel}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">Location</span>
@@ -87,13 +102,15 @@ export function MachineForm({ vessels, onSubmit }: Props) {
             model,
             serialNumber: serialNumber.trim(),
             type: type.trim(),
-            tasks: maintenancePlanLibrary[model].tasks.map((entry) => ({ ...entry })),
+            starterType: starterType.trim(),
+            tasks: createTasksFromModel(model, starterType),
           });
           setLocation("");
           setTag("");
           setSerialNumber("");
           setType("Chiller");
           setModel(availableMachineModels[0] || "");
+          setStarterType(availableStartersModels[0] || "");
         }}
         className="w-full rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
       >

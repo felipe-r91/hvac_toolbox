@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { type MachinePlan, type MachineMeta, type MaintenanceTask, type Vessel } from "../types/maintenance";
@@ -7,6 +6,7 @@ import { MachineHeader } from "../components/MachineHeader";
 import { SummaryCards } from "../components/SummaryCards";
 import { CategorySection } from "../components/CategorySection";
 import { MachineStatusField } from "../components/MachineStatusField";
+import { MachineFailureField } from "../components/MachineFailureField";
 
 type Props = {
   vessels: Vessel[];
@@ -42,10 +42,27 @@ export function MachineDetailPage({
 
   const grouped = groupTasks(plan.tasks, search, pendingOnly);
 
-  const allChecked = useMemo(
-    () => plan.tasks.length > 0 && plan.tasks.every((task) => task.checked),
-    [plan.tasks]
-  );
+  const canFinish =
+    plan.machine.operatingStatus === "down"
+      ? Boolean(
+        plan.machine.failureComponent &&
+        plan.machine.failureMode &&
+        (plan.machine.failureNotes || plan.machine.downtimeReason)
+      )
+      : plan.tasks.length > 0 && plan.tasks.every((task) => task.checked);
+
+  const markPendingTasksAsSkipped = () => {
+    plan.tasks.forEach((task) => {
+      if (!task.checked && task.status === "pending") {
+        onUpdateTask({
+          ...task,
+          checked: true,
+          status: "skipped",
+          completedAt: new Date().toISOString(),
+        });
+      }
+    });
+  };
 
   return (
     <section className="space-y-4">
@@ -65,6 +82,26 @@ export function MachineDetailPage({
         }}
         onReasonChange={(value) => onUpdateMachineField("downtimeReason", value)}
       />
+
+      <MachineFailureField
+        operatingStatus={plan.machine.operatingStatus || "online"}
+        failureComponent={plan.machine.failureComponent || ""}
+        failureMode={plan.machine.failureMode || ""}
+        failureNotes={plan.machine.failureNotes || ""}
+        onFailureComponentChange={(value) => onUpdateMachineField("failureComponent", value)}
+        onFailureModeChange={(value) => onUpdateMachineField("failureMode", value)}
+        onFailureNotesChange={(value) => onUpdateMachineField("failureNotes", value)}
+      />
+
+      {plan.machine.operatingStatus === "down" ? (
+        <button
+          type="button"
+          onClick={markPendingTasksAsSkipped}
+          className="w-full rounded-2xl bg-orange-100 px-4 py-3 text-sm font-medium text-orange-800 ring-1 ring-orange-200"
+        >
+          Mark remaining pending tasks as skipped
+        </button>
+      ) : null}
 
       <SummaryCards tasks={plan.tasks} />
 
@@ -100,11 +137,10 @@ export function MachineDetailPage({
 
       <button
         type="button"
-        disabled={!allChecked}
+        disabled={!canFinish}
         onClick={() => onFinishMaintenance(vesselId, machineId)}
-        className={`w-full rounded-2xl px-4 py-3 text-sm font-medium text-white ${
-          allChecked ? "bg-slate-900" : "bg-slate-300"
-        }`}
+        className={`w-full rounded-2xl px-4 py-3 text-sm font-medium text-white ${canFinish ? "bg-slate-900" : "bg-slate-300"
+          }`}
       >
         Finish maintenance
       </button>

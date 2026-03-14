@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { InputField } from "./InputField";
-import { availableMachineModels } from "../data/maintenancePlanLibrary";
+import { availableMachineModels, availableStartersModels } from "../data/maintenancePlanLibrary";
 import { type MachinePlan } from "../types/maintenance";
 
 type EditingMachine = {
@@ -22,6 +22,7 @@ type Props = {
     model: string;
     serialNumber: string;
     type: string;
+    starterType: string;
   }) => void;
 };
 
@@ -31,6 +32,7 @@ export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
   const [model, setModel] = useState(availableMachineModels[0] || "");
   const [serialNumber, setSerialNumber] = useState("");
   const [type, setType] = useState("");
+  const [starterType, setStarterType] = useState("");
 
   useEffect(() => {
     if (!machine) return;
@@ -40,6 +42,7 @@ export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
     setModel(machine.plan.machine.model);
     setSerialNumber(machine.plan.machine.serialNumber);
     setType(machine.plan.machine.type);
+    setStarterType(machine.plan.machine.starterType);
   }, [machine]);
 
   return (
@@ -62,6 +65,20 @@ export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
             ))}
           </select>
         </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">Starter Type</span>
+          <select
+            value={starterType}
+            onChange={(e) => setStarterType(e.target.value)}
+            className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+          >
+            {availableStartersModels.map((starterModels) => (
+              <option key={starterModels} value={starterModels}>
+                {starterModels}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <InputField label="Serial number" value={serialNumber} onChange={setSerialNumber} />
         <InputField label="Type" value={type} onChange={setType} />
@@ -79,6 +96,7 @@ export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
               model,
               serialNumber: serialNumber.trim(),
               type: type.trim(),
+              starterType: starterType.trim(),
             });
 
             onClose();

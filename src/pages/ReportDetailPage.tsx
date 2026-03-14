@@ -30,26 +30,45 @@ export function ReportDetailPage({ reports }: Props) {
         </h1>
 
         <p className="mt-1 text-sm text-slate-500">
-          {report.vesselName} · {report.machineModel} · {report.machineType}
+          {report.vesselName} · {report.machineModel} · {report.machineStarterType} · {report.machineType}
         </p>
 
         <p className="mt-1 text-sm text-slate-500">
           Completed at: {new Date(report.completedAt).toLocaleString()}
         </p>
 
-        <p className="mt-2 text-sm font-medium text-slate-700">
-          Overall status: {report.overallStatus}
-        </p>
-
-        {report.overallStatus === "down" && report.downtimeReason ? (
-          <p className="mt-2 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
-            Reason: {report.downtimeReason}
+        <div className="flex ">
+          <p className="my-2 mr-2 text-sm font-medium text-slate-700">
+            Overall status:
           </p>
+          <p className="my-2 text-sm font-medium text-red-500">
+            {report.overallStatus.toUpperCase()}
+          </p>
+        </div>
+
+
+        {report.overallStatus === "down" ? (
+          <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">Failure summary</h2>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <p><strong>Component:</strong> {report.failureComponent || "—"}</p>
+              <p><strong>Failure mode:</strong> {report.failureMode || "—"}</p>
+              <p><strong>Downtime reason:</strong> {report.downtimeReason || "—"}</p>
+              <p><strong>Notes:</strong> {report.failureNotes || "—"}</p>
+            </div>
+          </section>
         ) : null}
       </section>
-
       <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">Task summary</h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 ring-1 ring-red-200">
+            Faults: {report.faultCount || 0}
+          </span>
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-800 ring-1 ring-orange-200">
+            Skipped: {report.skippedCount || 0}
+          </span>
+        </div>
 
         <div className="mt-4 space-y-3">
           {report.tasks.map((task) => (

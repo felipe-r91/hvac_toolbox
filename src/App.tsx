@@ -18,6 +18,7 @@ import { SyncPage } from "./pages/SyncPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ReportDetailPage } from "./pages/ReportDetailPage";
 import { createId } from "./utils/createId";
+import { createTasksFromModel } from "./data/maintenancePlanLibrary";
 
 function MachineDetailRoute({
   fleet,
@@ -166,8 +167,9 @@ export default function App() {
                 model: payload.model,
                 serialNumber: payload.serialNumber,
                 type: payload.type,
+                starterType: payload.starterType
               },
-              tasks: [],
+              tasks: createTasksFromModel(payload.model, payload.starterType),
             },
           ],
         };
@@ -232,6 +234,7 @@ export default function App() {
   if (!vessel || !plan) return null;
 
   const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
+  const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
 
   const report: MaintenanceReport = {
     id: createId(),
@@ -242,9 +245,16 @@ export default function App() {
     machineModel: plan.machine.model,
     machineType: plan.machine.type,
     machineLocation: plan.machine.location,
+    machineStarterType: plan.machine.starterType,
     completedAt: new Date().toISOString(),
-    overallStatus: faultCount > 0 ? "down" : "online",
+    overallStatus:
+      plan.machine.operatingStatus === "down" || faultCount > 0 ? "down" : "online",
     downtimeReason: plan.machine.downtimeReason || "",
+    failureComponent: plan.machine.failureComponent,
+    failureMode: plan.machine.failureMode,
+    failureNotes: plan.machine.failureNotes || "",
+    faultCount,
+    skippedCount,
     tasks: plan.tasks.map((task) => ({ ...task })),
   };
 
@@ -274,6 +284,9 @@ export default function App() {
               ...currentPlan.machine,
               operatingStatus: "online",
               downtimeReason: "",
+              failureComponent: undefined,
+              failureMode: undefined,
+              failureNotes: "",
             },
             tasks: resetTasks,
           };
@@ -293,6 +306,7 @@ export default function App() {
   model: string;
   serialNumber: string;
   type: string;
+  starterType: string;
   tasks: MaintenanceTask[];
 }) => {
   setFleet((current) => ({
@@ -313,8 +327,9 @@ export default function App() {
                   model: payload.model,
                   serialNumber: payload.serialNumber,
                   type: payload.type,
+                  starterType: payload.starterType
                 },
-                tasks: payload.tasks,
+                tasks: createTasksFromModel(payload.model, payload.starterType),
               }
             : plan
         ),

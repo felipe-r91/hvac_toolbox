@@ -11,6 +11,8 @@ function statusClasses(status: TaskStatus) {
       return "bg-red-100 text-red-800 border-red-200";
     case "not-applicable":
       return "bg-slate-100 text-slate-700 border-slate-200";
+    case "skipped":
+      return "bg-orange-100 text-orange-800 border-orange-200";
     default:
       return "bg-blue-100 text-blue-800 border-blue-200";
   }
@@ -76,6 +78,7 @@ export function TaskItem({ task, onChange }: Props) {
                   <option value="attention">Attention</option>
                   <option value="fault">Fault</option>
                   <option value="not-applicable">Not applicable</option>
+                  <option value="skipped">Skipped</option>
                 </select>
               </label>
 

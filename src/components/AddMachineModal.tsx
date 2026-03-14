@@ -17,6 +17,7 @@ export function AddMachineModal({ open, onClose, vessels, onSubmit }: Props) {
         onSubmit={(payload) => {
           onSubmit(payload);
           onClose();
+          console.log(payload)
         }}
       />
     </Modal>

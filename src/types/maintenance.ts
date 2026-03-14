@@ -10,6 +10,8 @@ export type TaskCategory =
   | "Operational"
   | "Off-limit Operation"
   | "VSD Maintenance"
+  | "EM Starter Maintenance"
+  | "SSS Maintenance"
   | "Brine System"
   | "Cargo Fans/Dampers"
   | "Pneumatic"
@@ -22,7 +24,33 @@ export type TaskStatus =
   | "ok"
   | "attention"
   | "fault"
-  | "not-applicable";
+  | "not-applicable"
+  | "skipped";
+
+export type FailureComponent =
+  | "Compressor"
+  | "Starter"
+  | "Oil-System"
+  | "Refrigerant-Circuit"
+  | "Sensor"
+  | "Water-Flow"
+  | "Controls"
+  | "Mechanical"
+  | "other";
+
+export type FailureMode =
+  | "Trip"
+  | "Overheating"
+  | "High-Pressure"
+  | "Low-Pressure"
+  | "Low-Oil-Pressure"
+  | "Electrical-Fault"
+  | "Sensor-Fault"
+  | "Leak"
+  | "Seized"
+  | "Communication-Fault"
+  | "other";
+
 
 export type MachineMeta = {
   id: string;
@@ -31,8 +59,12 @@ export type MachineMeta = {
   model: string;
   serialNumber: string;
   type: string;
+  starterType: string;
   operatingStatus?: "online" | "down";
   downtimeReason?: string;
+  failureComponent?: FailureComponent;
+  failureMode?: FailureMode;
+  failureNotes?: string;
 };
 
 export type MaintenanceTask = {
@@ -74,6 +106,7 @@ export type NewMachinePayload = {
   model: string;
   serialNumber: string;
   type: string;
+  starterType: string;
 };
 
 export type MaintenanceReport = {
@@ -86,9 +119,15 @@ export type MaintenanceReport = {
   machineType: string;
   machineLocation: string;
   completedAt: string;
+  machineStarterType: string;
   overallStatus: "online" | "down";
   downtimeReason?: string;
+  failureComponent?: FailureComponent;
+  failureMode?: FailureMode;
+  failureNotes?: string;
   tasks: MaintenanceTask[];
+  faultCount?: number;
+  skippedCount?: number;
 };
 
 export type FleetData = {

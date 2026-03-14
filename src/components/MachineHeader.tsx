@@ -26,6 +26,7 @@ export function MachineHeader({ machine }: { machine: MachineMeta }) {
         <Info label="Location" value={machine.location} />
         <Info label="Tag" value={machine.tag} />
         <Info label="Model" value={machine.model} />
+        <Info label="Starter Type" value={machine.starterType} />
         <Info label="Serial N." value={machine.serialNumber} />
         <Info label="Type" value={machine.type} />
       </div>
