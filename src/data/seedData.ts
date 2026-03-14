@@ -17,6 +17,7 @@ export const seedFleet: FleetData = {
             model: "VSM89",
             serialNumber: "SN-TO-BE-FILLED",
             type: "Chiller",
+            starterType: "VSD",
           },
           tasks: [
             {
@@ -70,6 +71,7 @@ export const seedFleet: FleetData = {
             model: "SPARE-MODEL",
             serialNumber: "SN-SECOND-MACHINE",
             type: "Provision Plant",
+            starterType: "EM",
           },
           tasks: [
             {

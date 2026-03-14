@@ -12,7 +12,7 @@ export const categoryOrder: TaskCategory[] = [
   "Operational",
   "Off-limit Operation",
   "VSD Maintenance",
-  "EM Starter",
+  "EM Starter Maintenance",
   "SSS Maintenance",
   "Brine System",
   "Cargo Fans/Dampers",
