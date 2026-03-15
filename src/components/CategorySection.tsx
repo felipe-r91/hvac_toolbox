@@ -6,9 +6,19 @@ type Props = {
   category: TaskCategory;
   tasks: MaintenanceTask[];
   onUpdateTask: (task: MaintenanceTask) => void;
+  onAddTaskPhoto: (taskId: string, file: File) => void;
+  getTaskPhotoCount: (taskId: string) => number;
+  getLatestTaskPhotoUrl: (taskId: string) => string | null;
 };
 
-export function CategorySection({ category, tasks, onUpdateTask }: Props) {
+export function CategorySection({
+  category,
+  tasks,
+  onUpdateTask,
+  onAddTaskPhoto,
+  getTaskPhotoCount,
+  getLatestTaskPhotoUrl,
+}: Props) {
   const [open, setOpen] = useState(category === "Daily");
   const completed = tasks.filter((task) => task.checked).length;
 
@@ -33,7 +43,14 @@ export function CategorySection({ category, tasks, onUpdateTask }: Props) {
       {open ? (
         <div className="mt-4 space-y-3">
           {tasks.map((task) => (
-            <TaskItem key={task.id} task={task} onChange={onUpdateTask} />
+            <TaskItem
+              key={task.id}
+              task={task}
+              onChange={onUpdateTask}
+              onAddTaskPhoto={onAddTaskPhoto}
+              getTaskPhotoCount={getTaskPhotoCount}
+              getLatestTaskPhotoUrl={getLatestTaskPhotoUrl}
+            />
           ))}
         </div>
       ) : null}

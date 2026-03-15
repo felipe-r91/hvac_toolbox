@@ -1,12 +1,18 @@
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
-import { type MachinePlan, type MachineMeta, type MaintenanceTask, type Vessel } from "../types/maintenance";
+import {
+  type MachinePlan,
+  type MachineMeta,
+  type MaintenanceTask,
+  type Vessel,
+} from "../types/maintenance";
 import { groupTasks } from "../utils/groupTasks";
 import { MachineHeader } from "../components/MachineHeader";
 import { SummaryCards } from "../components/SummaryCards";
 import { CategorySection } from "../components/CategorySection";
 import { MachineStatusField } from "../components/MachineStatusField";
 import { MachineFailureField } from "../components/MachineFailureField";
+import { MachinePhotoSection } from "../components/MachinePhotoSection";
 
 type Props = {
   vessels: Vessel[];
@@ -17,6 +23,12 @@ type Props = {
   onUpdateTask: (task: MaintenanceTask) => void;
   onUpdateMachineField: (field: keyof MachineMeta, value: string) => void;
   onFinishMaintenance: (vesselId: string, machineId: string) => void;
+  onAddMachinePhoto: (machineId: string, file: File) => void;
+  getMachinePhotoCount: (machineId: string) => number;
+  getTaskPhotoCount: (taskId: string) => number;
+  getLatestMachinePhotoUrl: (machineId: string) => string | null;
+  getLatestTaskPhotoUrl: (taskId: string) => string | null;
+  onAddTaskPhoto: (taskId: string, file: File) => void;
 };
 
 export function MachineDetailPage({
@@ -28,6 +40,12 @@ export function MachineDetailPage({
   onUpdateTask,
   onUpdateMachineField,
   onFinishMaintenance,
+  onAddMachinePhoto,
+  getMachinePhotoCount,
+  getTaskPhotoCount,
+  getLatestTaskPhotoUrl,
+  getLatestMachinePhotoUrl,
+  onAddTaskPhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
 
@@ -42,15 +60,6 @@ export function MachineDetailPage({
 
   const grouped = groupTasks(plan.tasks, search, pendingOnly);
 
-  const canFinish =
-    plan.machine.operatingStatus === "down"
-      ? Boolean(
-        plan.machine.failureComponent &&
-        plan.machine.failureMode &&
-        (plan.machine.failureNotes || plan.machine.downtimeReason)
-      )
-      : plan.tasks.length > 0 && plan.tasks.every((task) => task.checked);
-
   const markPendingTasksAsSkipped = () => {
     plan.tasks.forEach((task) => {
       if (!task.checked && task.status === "pending") {
@@ -64,11 +73,44 @@ export function MachineDetailPage({
     });
   };
 
+  const machinePhotoCount = getMachinePhotoCount(machineId);
+  const machinePhotoValid = machinePhotoCount > 0;
+
+  const allRequiredTaskPhotosValid = plan.tasks.every((task) => {
+    const taskPhotoCount = getTaskPhotoCount(task.id);
+    const needsPhoto = task.status === "fault" || task.status === "attention";
+    return !needsPhoto || taskPhotoCount > 0;
+  });
+
+  const canFinish =
+    plan.machine.operatingStatus === "down"
+      ? Boolean(
+        machinePhotoValid &&
+        plan.machine.failureComponent &&
+        plan.machine.failureMode &&
+        (plan.machine.failureNotes || plan.machine.downtimeReason) &&
+        allRequiredTaskPhotosValid
+      )
+      : Boolean(
+        machinePhotoValid &&
+        plan.tasks.length > 0 &&
+        plan.tasks.every((task) => task.checked) &&
+        allRequiredTaskPhotosValid
+      );
+
   return (
     <section className="space-y-4">
       <BackButton />
 
       <MachineHeader machine={plan.machine} />
+
+      <MachinePhotoSection
+        label="Machine Picture"
+        required
+        count={machinePhotoCount}
+        previewUrl={getLatestMachinePhotoUrl(machineId)}
+        onPick={(file) => onAddMachinePhoto(machineId, file)}
+      />
 
       <MachineStatusField
         value={plan.machine.operatingStatus || "online"}
@@ -78,6 +120,9 @@ export function MachineDetailPage({
 
           if (value === "online") {
             onUpdateMachineField("downtimeReason", "");
+            onUpdateMachineField("failureComponent", "");
+            onUpdateMachineField("failureMode", "");
+            onUpdateMachineField("failureNotes", "");
           }
         }}
         onReasonChange={(value) => onUpdateMachineField("downtimeReason", value)}
@@ -88,9 +133,15 @@ export function MachineDetailPage({
         failureComponent={plan.machine.failureComponent || ""}
         failureMode={plan.machine.failureMode || ""}
         failureNotes={plan.machine.failureNotes || ""}
-        onFailureComponentChange={(value) => onUpdateMachineField("failureComponent", value)}
-        onFailureModeChange={(value) => onUpdateMachineField("failureMode", value)}
-        onFailureNotesChange={(value) => onUpdateMachineField("failureNotes", value)}
+        onFailureComponentChange={(value) =>
+          onUpdateMachineField("failureComponent", value)
+        }
+        onFailureModeChange={(value) =>
+          onUpdateMachineField("failureMode", value)
+        }
+        onFailureNotesChange={(value) =>
+          onUpdateMachineField("failureNotes", value)
+        }
       />
 
       {plan.machine.operatingStatus === "down" ? (
@@ -132,8 +183,23 @@ export function MachineDetailPage({
           category={section.category}
           tasks={section.tasks}
           onUpdateTask={onUpdateTask}
+          onAddTaskPhoto={(taskId, file) => onAddTaskPhoto(taskId, file)}
+          getTaskPhotoCount={getTaskPhotoCount}
+          getLatestTaskPhotoUrl={getLatestTaskPhotoUrl}
         />
       ))}
+
+      {!machinePhotoValid ? (
+        <p className="text-sm text-red-600">
+          A machine identification photo is required before finishing maintenance.
+        </p>
+      ) : null}
+
+      {!allRequiredTaskPhotosValid ? (
+        <p className="text-sm text-red-600">
+          Tasks marked as fault or attention must have at least one photo.
+        </p>
+      ) : null}
 
       <button
         type="button"

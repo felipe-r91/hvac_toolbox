@@ -2,6 +2,7 @@ import { type FleetData } from "../types/maintenance";
 
 export const seedFleet: FleetData = {
   reports: [],
+  photos: [],
   vessels: [
     {
       id: "vessel-001",

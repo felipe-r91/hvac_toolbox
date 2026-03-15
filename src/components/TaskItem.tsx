@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { type MaintenanceTask, type TaskStatus } from "../types/maintenance";
+import { PhotoCaptureField } from "./PhotoCaptureField";
 
 function statusClasses(status: TaskStatus) {
   switch (status) {
@@ -21,9 +22,18 @@ function statusClasses(status: TaskStatus) {
 type Props = {
   task: MaintenanceTask;
   onChange: (task: MaintenanceTask) => void;
+  onAddTaskPhoto: (taskId: string, file: File) => void;
+  getTaskPhotoCount: (taskId: string) => number;
+  getLatestTaskPhotoUrl: (taskId: string) => string | null;
 };
 
-export function TaskItem({ task, onChange }: Props) {
+export function TaskItem({
+  task,
+  onChange,
+  onAddTaskPhoto,
+  getTaskPhotoCount,
+  getLatestTaskPhotoUrl,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -40,7 +50,7 @@ export function TaskItem({ task, onChange }: Props) {
               status: e.target.checked && task.status === "pending" ? "ok" : task.status,
             })
           }
-          className="mt-1 h-5 w-5 rounded"
+          className="mt-1 h-5 w-5 rounded shrink-0"
         />
 
         <div className="min-w-0 flex-1">
@@ -51,9 +61,12 @@ export function TaskItem({ task, onChange }: Props) {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(task.status)}`}>
+              <span
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(task.status)}`}
+              >
                 {task.status}
               </span>
+
               <button
                 type="button"
                 onClick={() => setExpanded((value) => !value)}
@@ -63,67 +76,85 @@ export function TaskItem({ task, onChange }: Props) {
               </button>
             </div>
           </div>
-
-          {expanded && (
-            <div className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-600">Status</span>
-                <select
-                  value={task.status}
-                  onChange={(e) => onChange({ ...task, status: e.target.value as TaskStatus })}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="ok">OK</option>
-                  <option value="attention">Attention</option>
-                  <option value="fault">Fault</option>
-                  <option value="not-applicable">Not applicable</option>
-                  <option value="skipped">Skipped</option>
-                </select>
-              </label>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">Measured value</span>
-                  <input
-                    value={task.measuredValue}
-                    onChange={(e) => onChange({ ...task, measuredValue: e.target.value })}
-                    placeholder={task.unit ? `Enter value in ${task.unit}` : "Enter value"}
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">Unit</span>
-                  <input
-                    value={task.unit || ""}
-                    onChange={(e) => onChange({ ...task, unit: e.target.value })}
-                    placeholder="bar, °C, mm..."
-                    className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                  />
-                </label>
-              </div>
-
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-600">Notes</span>
-                <textarea
-                  value={task.notes}
-                  onChange={(e) => onChange({ ...task, notes: e.target.value })}
-                  rows={3}
-                  placeholder="Write inspection notes, findings, alarms, leakage values, observations..."
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                />
-              </label>
-
-              {task.completedAt ? (
-                <p className="text-xs text-slate-500">
-                  Completed at: {new Date(task.completedAt).toLocaleString()}
-                </p>
-              ) : null}
-            </div>
-          )}
         </div>
       </div>
+
+      {expanded && (
+        <div className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600">Status</span>
+            <select
+              value={task.status}
+              onChange={(e) =>
+                onChange({ ...task, status: e.target.value as TaskStatus })
+              }
+              className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none"
+            >
+              <option value="pending">Pending</option>
+              <option value="ok">OK</option>
+              <option value="attention">Attention</option>
+              <option value="fault">Fault</option>
+              <option value="not-applicable">Not applicable</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </label>
+
+          {task.status === "fault" || task.status === "attention" ? (
+            <PhotoCaptureField
+              label="Task photo"
+              required
+              count={getTaskPhotoCount(task.id)}
+              previewUrl={getLatestTaskPhotoUrl(task.id)}
+              onPick={(file) => onAddTaskPhoto(task.id, file)}
+            />
+          ) : null}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-600">
+                Measured value
+              </span>
+              <input
+                value={task.measuredValue}
+                onChange={(e) =>
+                  onChange({ ...task, measuredValue: e.target.value })
+                }
+                placeholder={task.unit ? `Enter value in ${task.unit}` : "Enter value"}
+                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-600">
+                Unit
+              </span>
+              <input
+                value={task.unit || ""}
+                onChange={(e) => onChange({ ...task, unit: e.target.value })}
+                placeholder="bar, °C, mm..."
+                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600">Notes</span>
+            <textarea
+              value={task.notes}
+              onChange={(e) => onChange({ ...task, notes: e.target.value })}
+              rows={3}
+              placeholder="Write inspection notes, findings, alarms, leakage values, observations..."
+              className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+            />
+          </label>
+
+          {task.completedAt ? (
+            <p className="text-xs text-slate-500">
+              Completed at: {new Date(task.completedAt).toLocaleString()}
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

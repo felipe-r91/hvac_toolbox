@@ -28,6 +28,10 @@ function MachineDetailRoute({
   onTogglePendingOnly,
   onUpdateTask,
   onUpdateMachineField,
+  onAddMachinePhoto,
+  onAddTaskPhoto,
+  getMachinePhotoCount,
+  getTaskPhotoCount,
   onFinishMaintenance,
 }: {
   fleet: FleetData;
@@ -42,9 +46,35 @@ function MachineDetailRoute({
     field: keyof MachineMeta,
     value: string
   ) => void;
+  onAddMachinePhoto: (machineId: string, file: File) => void;
+  onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
+  getMachinePhotoCount: (machineId: string) => number;
+  getTaskPhotoCount: (taskId: string) => number;
   onFinishMaintenance: (vesselId: string, machineId: string) => void;
 }) {
   const { vesselId = "", machineId = "" } = useParams();
+
+  const getLatestMachinePhotoUrl = (machineId: string) => {
+    const latestPhoto = [...fleet.photos]
+      .filter((photo) => photo.machineId === machineId && photo.kind === "machine")
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+
+    return latestPhoto?.previewUrl || null;
+  };
+
+  const getLatestTaskPhotoUrl = (machineId: string, taskId: string) => {
+    const latestPhoto = [...fleet.photos]
+      .filter((photo) => photo.machineId === machineId && photo.taskId === taskId && photo.kind === "task")
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+
+    return latestPhoto?.previewUrl || null;
+  };
 
   return (
     <MachineDetailPage
@@ -58,6 +88,12 @@ function MachineDetailRoute({
         onUpdateMachineField(vesselId, machineId, field, value)
       }
       onFinishMaintenance={onFinishMaintenance}
+      onAddMachinePhoto={onAddMachinePhoto}
+      getMachinePhotoCount={getMachinePhotoCount}
+      onAddTaskPhoto={(taskId, file) => onAddTaskPhoto(machineId, taskId, file)}
+      getTaskPhotoCount={getTaskPhotoCount}
+      getLatestMachinePhotoUrl={getLatestMachinePhotoUrl}
+      getLatestTaskPhotoUrl={(taskId) => getLatestTaskPhotoUrl(machineId, taskId)}
     />
   );
 }
@@ -76,6 +112,10 @@ function MachineDetailRouteWithNavigation(props: {
     value: string
   ) => void;
   onCreateReport: (vesselId: string, machineId: string) => string | null;
+  onAddMachinePhoto: (machineId: string, file: File) => void;
+  getMachinePhotoCount: (machineId: string) => number;
+  onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
+  getTaskPhotoCount: (taskId: string) => number;
 }) {
   const navigate = useNavigate();
 
@@ -131,11 +171,11 @@ export default function App() {
       vessels: current.vessels.map((vessel) =>
         vessel.id === payload.id
           ? {
-              ...vessel,
-              name: payload.name,
-              imoNumber: payload.imoNumber,
-              description: payload.description,
-            }
+            ...vessel,
+            name: payload.name,
+            imoNumber: payload.imoNumber,
+            description: payload.description,
+          }
           : vessel
       ),
     }));
@@ -227,98 +267,172 @@ export default function App() {
     }));
   };
 
-  const createReport = (vesselId: string, machineId: string) => {
-  const vessel = fleet.vessels.find((item) => item.id === vesselId);
-  const plan = vessel?.machines.find((item) => item.machine.id === machineId);
+  const addMachinePhoto = (machineId: string, file: File) => {
+    const photoId = createId();
+    const previewUrl = URL.createObjectURL(file);
 
-  if (!vessel || !plan) return null;
-
-  const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
-  const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
-
-  const report: MaintenanceReport = {
-    id: createId(),
-    vesselId: vessel.id,
-    vesselName: vessel.name,
-    machineId: plan.machine.id,
-    machineTag: plan.machine.tag,
-    machineModel: plan.machine.model,
-    machineType: plan.machine.type,
-    machineLocation: plan.machine.location,
-    machineStarterType: plan.machine.starterType,
-    completedAt: new Date().toISOString(),
-    overallStatus:
-      plan.machine.operatingStatus === "down" || faultCount > 0 ? "down" : "online",
-    downtimeReason: plan.machine.downtimeReason || "",
-    failureComponent: plan.machine.failureComponent,
-    failureMode: plan.machine.failureMode,
-    failureNotes: plan.machine.failureNotes || "",
-    faultCount,
-    skippedCount,
-    tasks: plan.tasks.map((task) => ({ ...task })),
+    setFleet((current) => ({
+      ...current,
+      photos: [
+        ...current.photos,
+        {
+          id: photoId,
+          machineId,
+          kind: "machine",
+          filename: file.name,
+          mimeType: file.type,
+          createdAt: new Date().toISOString(),
+          required: true,
+          synced: false,
+          previewUrl,
+        },
+      ],
+    }));
   };
 
-  const resetTasks = plan.tasks.map((task) => ({
-    ...task,
-    checked: false,
-    status: "pending" as const,
-    notes: "",
-    measuredValue: "",
-    completedAt: undefined,
-  }));
+  const addTaskPhoto = (machineId: string, taskId: string, file: File) => {
+    const photoId = createId();
+    const previewUrl = URL.createObjectURL(file);
 
-  setFleet((current) => ({
-    ...current,
-    reports: [report, ...current.reports],
-    vessels: current.vessels.map((currentVessel) => {
-      if (currentVessel.id !== vesselId) return currentVessel;
+    setFleet((current) => ({
+      ...current,
+      photos: [
+        ...current.photos,
+        {
+          id: photoId,
+          machineId,
+          taskId,
+          kind: "task",
+          filename: file.name,
+          mimeType: file.type,
+          createdAt: new Date().toISOString(),
+          required: true,
+          synced: false,
+          previewUrl,
+        },
+      ],
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        machines: vessel.machines.map((plan) => ({
+          ...plan,
+          tasks: plan.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                ...task,
+                photoIds: [...(task.photoIds || []), photoId],
+              }
+              : task
+          ),
+        })),
+      })),
+    }));
 
-      return {
-        ...currentVessel,
-        machines: currentVessel.machines.map((currentPlan) => {
-          if (currentPlan.machine.id !== machineId) return currentPlan;
+    // later: save File blob to IndexedDB using photoId
+  };
 
-          return {
-            ...currentPlan,
-            machine: {
-              ...currentPlan.machine,
-              operatingStatus: "online",
-              downtimeReason: "",
-              failureComponent: undefined,
-              failureMode: undefined,
-              failureNotes: "",
-            },
-            tasks: resetTasks,
-          };
-        }),
-      };
-    }),
-  }));
+  const getMachinePhotoCount = (machineId: string) =>
+    fleet.photos.filter((photo) => photo.machineId === machineId && photo.kind === "machine").length;
 
-  return report.id;
-};
+  const getTaskPhotoCount = (taskId: string) =>
+    fleet.photos.filter((photo) => photo.taskId === taskId && photo.kind === "task").length;
+
+  const createReport = (vesselId: string, machineId: string) => {
+    const vessel = fleet.vessels.find((item) => item.id === vesselId);
+    const plan = vessel?.machines.find((item) => item.machine.id === machineId);
+
+    if (!vessel || !plan) return null;
+
+    const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
+    const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
+
+    const machinePhotoIds = fleet.photos
+      .filter((photo) => photo.machineId === plan.machine.id && photo.kind === "machine")
+      .map((photo) => photo.id);
+
+    const report: MaintenanceReport = {
+      id: createId(),
+      vesselId: vessel.id,
+      vesselName: vessel.name,
+      machineId: plan.machine.id,
+      machineTag: plan.machine.tag,
+      machineModel: plan.machine.model,
+      machineType: plan.machine.type,
+      machineLocation: plan.machine.location,
+      machineStarterType: plan.machine.starterType,
+      completedAt: new Date().toISOString(),
+      overallStatus:
+        plan.machine.operatingStatus === "down" ? "down" : "online",
+      downtimeReason: plan.machine.downtimeReason || "",
+      failureComponent: plan.machine.failureComponent,
+      failureMode: plan.machine.failureMode,
+      failureNotes: plan.machine.failureNotes || "",
+      faultCount,
+      skippedCount,
+      machinePhotoIds,
+      tasks: plan.tasks.map((task) => ({ ...task })),
+    };
+
+    const resetTasks = plan.tasks.map((task) => ({
+      ...task,
+      checked: false,
+      status: "pending" as const,
+      notes: "",
+      measuredValue: "",
+      completedAt: undefined,
+    }));
+
+    setFleet((current) => ({
+      ...current,
+      reports: [report, ...current.reports],
+      vessels: current.vessels.map((currentVessel) => {
+        if (currentVessel.id !== vesselId) return currentVessel;
+
+        return {
+          ...currentVessel,
+          machines: currentVessel.machines.map((currentPlan) => {
+            if (currentPlan.machine.id !== machineId) return currentPlan;
+
+            return {
+              ...currentPlan,
+              machine: {
+                ...currentPlan.machine,
+                operatingStatus: "online",
+                downtimeReason: "",
+                failureComponent: undefined,
+                failureMode: undefined,
+                failureNotes: "",
+              },
+              tasks: resetTasks,
+            };
+          }),
+        };
+      }),
+    }));
+
+    return report.id;
+  };
 
   const editMachine = (payload: {
-  vesselId: string;
-  machineId: string;
-  location: string;
-  tag: string;
-  model: string;
-  serialNumber: string;
-  type: string;
-  starterType: string;
-  tasks: MaintenanceTask[];
-}) => {
-  setFleet((current) => ({
-    ...current,
-    vessels: current.vessels.map((vessel) => {
-      if (vessel.id !== payload.vesselId) return vessel;
+    vesselId: string;
+    machineId: string;
+    location: string;
+    tag: string;
+    model: string;
+    serialNumber: string;
+    type: string;
+    starterType: string;
+    tasks: MaintenanceTask[];
+  }) => {
+    setFleet((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) => {
+        if (vessel.id !== payload.vesselId) return vessel;
 
-      return {
-        ...vessel,
-        machines: vessel.machines.map((plan) =>
-          plan.machine.id === payload.machineId
-            ? {
+        return {
+          ...vessel,
+          machines: vessel.machines.map((plan) =>
+            plan.machine.id === payload.machineId
+              ? {
                 ...plan,
                 machine: {
                   ...plan.machine,
@@ -331,31 +445,31 @@ export default function App() {
                 },
                 tasks: createTasksFromModel(payload.model, payload.starterType),
               }
-            : plan
-        ),
-      };
-    }),
-  }));
-};
+              : plan
+          ),
+        };
+      }),
+    }));
+  };
 
-const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
-  setFleet((current) => ({
-    ...current,
-    vessels: current.vessels.map((vessel) => {
-      if (vessel.id !== payload.vesselId) return vessel;
+  const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
+    setFleet((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) => {
+        if (vessel.id !== payload.vesselId) return vessel;
 
-      return {
-        ...vessel,
-        machines: vessel.machines.filter(
-          (plan) => plan.machine.id !== payload.machineId
-        ),
-      };
-    }),
-    reports: current.reports.filter(
-      (report) => report.machineId !== payload.machineId
-    ),
-  }));
-};
+        return {
+          ...vessel,
+          machines: vessel.machines.filter(
+            (plan) => plan.machine.id !== payload.machineId
+          ),
+        };
+      }),
+      reports: current.reports.filter(
+        (report) => report.machineId !== payload.machineId
+      ),
+    }));
+  };
 
   return (
     <AppShell
@@ -391,8 +505,8 @@ const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
           }
         />
         <Route path="/machines" element={<MachinesPage vessels={fleet.vessels}
-      onEditMachine={editMachine}
-      onDeleteMachine={deleteMachine}/>} />
+          onEditMachine={editMachine}
+          onDeleteMachine={deleteMachine} />} />
         <Route path="/add" element={<Navigate to="/vessels" replace />} />
         <Route path="/sync" element={<SyncPage />} />
         <Route
@@ -419,6 +533,10 @@ const deleteMachine = (payload: { vesselId: string; machineId: string }) => {
               onUpdateTask={updateTask}
               onUpdateMachineField={updateMachineField}
               onCreateReport={createReport}
+              onAddMachinePhoto={addMachinePhoto}
+              getMachinePhotoCount={getMachinePhotoCount}
+              onAddTaskPhoto={addTaskPhoto}
+              getTaskPhotoCount={getTaskPhotoCount}
             />
           }
         />

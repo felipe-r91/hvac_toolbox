@@ -77,6 +77,7 @@ export type MaintenanceTask = {
   notes: string;
   measuredValue: string;
   unit?: string;
+  photoIds?: string[];
   completedAt?: string;
 };
 
@@ -127,10 +128,26 @@ export type MaintenanceReport = {
   failureNotes?: string;
   tasks: MaintenanceTask[];
   faultCount?: number;
+  machinePhotoIds?: string[];
   skippedCount?: number;
 };
 
 export type FleetData = {
   vessels: Vessel[];
   reports: MaintenanceReport[];
+  photos: PhotoRecord[];
+};
+
+export type PhotoRecord = {
+  id: string;
+  machineId: string;
+  reportId?: string;
+  taskId?: string;
+  kind: "machine" | "task";
+  filename: string;
+  mimeType: string;
+  createdAt: string;
+  required: boolean;
+  synced: boolean;
+  previewUrl?: string;
 };
