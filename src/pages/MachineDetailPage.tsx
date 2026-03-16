@@ -24,11 +24,13 @@ type Props = {
   onUpdateMachineField: (field: keyof MachineMeta, value: string) => void;
   onFinishMaintenance: (vesselId: string, machineId: string) => void;
   onAddMachinePhoto: (machineId: string, file: File) => void;
+  onAddTaskPhoto: (taskId: string, file: File) => void;
   getMachinePhotoCount: (machineId: string) => number;
   getTaskPhotoCount: (taskId: string) => number;
-  getLatestMachinePhotoUrl: (machineId: string) => string | null;
-  getLatestTaskPhotoUrl: (taskId: string) => string | null;
-  onAddTaskPhoto: (taskId: string, file: File) => void;
+  getMachinePhotoUrls: (machineId: string) => string[];
+  getTaskPhotoUrls: (taskId: string) => string[];
+  onDeleteMachinePhoto: (previewUrl: string) => void;
+  onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
 };
 
 export function MachineDetailPage({
@@ -41,11 +43,13 @@ export function MachineDetailPage({
   onUpdateMachineField,
   onFinishMaintenance,
   onAddMachinePhoto,
+  onAddTaskPhoto,
   getMachinePhotoCount,
   getTaskPhotoCount,
-  getLatestTaskPhotoUrl,
-  getLatestMachinePhotoUrl,
-  onAddTaskPhoto,
+  getMachinePhotoUrls,
+  getTaskPhotoUrls,
+  onDeleteMachinePhoto,
+  onDeleteTaskPhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
 
@@ -108,7 +112,8 @@ export function MachineDetailPage({
         label="Machine Picture"
         required
         count={machinePhotoCount}
-        previewUrl={getLatestMachinePhotoUrl(machineId)}
+        previewUrls={getMachinePhotoUrls(machineId)}
+        onDeletePhoto={onDeleteMachinePhoto}
         onPick={(file) => onAddMachinePhoto(machineId, file)}
       />
 
@@ -185,7 +190,8 @@ export function MachineDetailPage({
           onUpdateTask={onUpdateTask}
           onAddTaskPhoto={(taskId, file) => onAddTaskPhoto(taskId, file)}
           getTaskPhotoCount={getTaskPhotoCount}
-          getLatestTaskPhotoUrl={getLatestTaskPhotoUrl}
+          getTaskPhotoUrls={getTaskPhotoUrls}
+          onDeleteTaskPhoto={onDeleteTaskPhoto}
         />
       ))}
 

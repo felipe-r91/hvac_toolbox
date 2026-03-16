@@ -30,6 +30,8 @@ function MachineDetailRoute({
   onUpdateMachineField,
   onAddMachinePhoto,
   onAddTaskPhoto,
+  onDeleteMachinePhoto,
+  onDeleteTaskPhoto,
   getMachinePhotoCount,
   getTaskPhotoCount,
   onFinishMaintenance,
@@ -48,33 +50,32 @@ function MachineDetailRoute({
   ) => void;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
+  onDeleteMachinePhoto: (machineId: string, previewUrl: string) => void;
+  onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
   getMachinePhotoCount: (machineId: string) => number;
   getTaskPhotoCount: (taskId: string) => number;
   onFinishMaintenance: (vesselId: string, machineId: string) => void;
 }) {
   const { vesselId = "", machineId = "" } = useParams();
 
-  const getLatestMachinePhotoUrl = (machineId: string) => {
-    const latestPhoto = [...fleet.photos]
-      .filter((photo) => photo.machineId === machineId && photo.kind === "machine")
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
+  const getMachinePhotoUrls = (currentMachineId: string) =>
+    fleet.photos
+      .filter((photo) => photo.machineId === currentMachineId && photo.kind === "machine")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((photo) => photo.previewUrl)
+      .filter((url): url is string => Boolean(url));
 
-    return latestPhoto?.previewUrl || null;
-  };
-
-  const getLatestTaskPhotoUrl = (machineId: string, taskId: string) => {
-    const latestPhoto = [...fleet.photos]
-      .filter((photo) => photo.machineId === machineId && photo.taskId === taskId && photo.kind === "task")
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
-
-    return latestPhoto?.previewUrl || null;
-  };
+  const getTaskPhotoUrls = (currentTaskId: string) =>
+    fleet.photos
+      .filter(
+        (photo) =>
+          photo.machineId === machineId &&
+          photo.taskId === currentTaskId &&
+          photo.kind === "task"
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((photo) => photo.previewUrl)
+      .filter((url): url is string => Boolean(url));
 
   return (
     <MachineDetailPage
@@ -89,11 +90,13 @@ function MachineDetailRoute({
       }
       onFinishMaintenance={onFinishMaintenance}
       onAddMachinePhoto={onAddMachinePhoto}
-      getMachinePhotoCount={getMachinePhotoCount}
       onAddTaskPhoto={(taskId, file) => onAddTaskPhoto(machineId, taskId, file)}
+      getMachinePhotoCount={getMachinePhotoCount}
       getTaskPhotoCount={getTaskPhotoCount}
-      getLatestMachinePhotoUrl={getLatestMachinePhotoUrl}
-      getLatestTaskPhotoUrl={(taskId) => getLatestTaskPhotoUrl(machineId, taskId)}
+      getMachinePhotoUrls={getMachinePhotoUrls}
+      getTaskPhotoUrls={getTaskPhotoUrls}
+      onDeleteMachinePhoto={(previewUrl) => onDeleteMachinePhoto(machineId, previewUrl)}
+      onDeleteTaskPhoto={(taskId, previewUrl) => onDeleteTaskPhoto(taskId, previewUrl)}
     />
   );
 }
@@ -113,8 +116,10 @@ function MachineDetailRouteWithNavigation(props: {
   ) => void;
   onCreateReport: (vesselId: string, machineId: string) => string | null;
   onAddMachinePhoto: (machineId: string, file: File) => void;
-  getMachinePhotoCount: (machineId: string) => number;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
+  onDeleteMachinePhoto: (machineId: string, previewUrl: string) => void;
+  onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
+  getMachinePhotoCount: (machineId: string) => number;
   getTaskPhotoCount: (taskId: string) => number;
 }) {
   const navigate = useNavigate();
@@ -171,11 +176,11 @@ export default function App() {
       vessels: current.vessels.map((vessel) =>
         vessel.id === payload.id
           ? {
-            ...vessel,
-            name: payload.name,
-            imoNumber: payload.imoNumber,
-            description: payload.description,
-          }
+              ...vessel,
+              name: payload.name,
+              imoNumber: payload.imoNumber,
+              description: payload.description,
+            }
           : vessel
       ),
     }));
@@ -186,6 +191,11 @@ export default function App() {
       ...current,
       vessels: current.vessels.filter((vessel) => vessel.id !== vesselId),
       reports: current.reports.filter((report) => report.vesselId !== vesselId),
+      photos: current.photos.filter((photo) => {
+        const vessel = current.vessels.find((item) => item.id === vesselId);
+        const machineIds = vessel?.machines.map((plan) => plan.machine.id) || [];
+        return !machineIds.includes(photo.machineId);
+      }),
     }));
   };
 
@@ -207,7 +217,12 @@ export default function App() {
                 model: payload.model,
                 serialNumber: payload.serialNumber,
                 type: payload.type,
-                starterType: payload.starterType
+                starterType: payload.starterType,
+                operatingStatus: "online",
+                downtimeReason: "",
+                failureComponent: undefined,
+                failureMode: undefined,
+                failureNotes: "",
               },
               tasks: createTasksFromModel(payload.model, payload.starterType),
             },
@@ -274,7 +289,9 @@ export default function App() {
     setFleet((current) => ({
       ...current,
       photos: [
-        ...current.photos,
+        ...current.photos.filter(
+          (photo) => !(photo.machineId === machineId && photo.kind === "machine")
+        ),
         {
           id: photoId,
           machineId,
@@ -318,20 +335,63 @@ export default function App() {
           tasks: plan.tasks.map((task) =>
             task.id === taskId
               ? {
-                ...task,
-                photoIds: [...(task.photoIds || []), photoId],
-              }
+                  ...task,
+                  photoIds: [...(task.photoIds || []), photoId],
+                }
               : task
           ),
         })),
       })),
     }));
+  };
 
-    // later: save File blob to IndexedDB using photoId
+  const deleteMachinePhoto = (machineId: string, previewUrl: string) => {
+    setFleet((current) => ({
+      ...current,
+      photos: current.photos.filter(
+        (photo) =>
+          !(
+            photo.machineId === machineId &&
+            photo.kind === "machine" &&
+            photo.previewUrl === previewUrl
+          )
+      ),
+    }));
+  };
+
+  const deleteTaskPhoto = (taskId: string, previewUrl: string) => {
+    const photoToDelete = fleet.photos.find(
+      (photo) =>
+        photo.taskId === taskId &&
+        photo.kind === "task" &&
+        photo.previewUrl === previewUrl
+    );
+
+    if (!photoToDelete) return;
+
+    setFleet((current) => ({
+      ...current,
+      photos: current.photos.filter((photo) => photo.id !== photoToDelete.id),
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        machines: vessel.machines.map((plan) => ({
+          ...plan,
+          tasks: plan.tasks.map((task) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  photoIds: (task.photoIds || []).filter((id) => id !== photoToDelete.id),
+                }
+              : task
+          ),
+        })),
+      })),
+    }));
   };
 
   const getMachinePhotoCount = (machineId: string) =>
-    fleet.photos.filter((photo) => photo.machineId === machineId && photo.kind === "machine").length;
+    fleet.photos.filter((photo) => photo.machineId === machineId && photo.kind === "machine")
+      .length;
 
   const getTaskPhotoCount = (taskId: string) =>
     fleet.photos.filter((photo) => photo.taskId === taskId && photo.kind === "task").length;
@@ -360,8 +420,7 @@ export default function App() {
       machineLocation: plan.machine.location,
       machineStarterType: plan.machine.starterType,
       completedAt: new Date().toISOString(),
-      overallStatus:
-        plan.machine.operatingStatus === "down" ? "down" : "online",
+      overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
       downtimeReason: plan.machine.downtimeReason || "",
       failureComponent: plan.machine.failureComponent,
       failureMode: plan.machine.failureMode,
@@ -437,18 +496,18 @@ export default function App() {
           machines: vessel.machines.map((plan) =>
             plan.machine.id === payload.machineId
               ? {
-                ...plan,
-                machine: {
-                  ...plan.machine,
-                  location: payload.location,
-                  tag: payload.tag,
-                  model: payload.model,
-                  serialNumber: payload.serialNumber,
-                  type: payload.type,
-                  starterType: payload.starterType
-                },
-                tasks: createTasksFromModel(payload.model, payload.starterType),
-              }
+                  ...plan,
+                  machine: {
+                    ...plan.machine,
+                    location: payload.location,
+                    tag: payload.tag,
+                    model: payload.model,
+                    serialNumber: payload.serialNumber,
+                    type: payload.type,
+                    starterType: payload.starterType,
+                  },
+                  tasks: payload.tasks,
+                }
               : plan
           ),
         };
@@ -464,14 +523,11 @@ export default function App() {
 
         return {
           ...vessel,
-          machines: vessel.machines.filter(
-            (plan) => plan.machine.id !== payload.machineId
-          ),
+          machines: vessel.machines.filter((plan) => plan.machine.id !== payload.machineId),
         };
       }),
-      reports: current.reports.filter(
-        (report) => report.machineId !== payload.machineId
-      ),
+      reports: current.reports.filter((report) => report.machineId !== payload.machineId),
+      photos: current.photos.filter((photo) => photo.machineId !== payload.machineId),
     }));
   };
 
@@ -498,6 +554,7 @@ export default function App() {
     >
       <Routes>
         <Route path="/" element={<Navigate to="/vessels" replace />} />
+
         <Route
           path="/vessels"
           element={
@@ -508,23 +565,36 @@ export default function App() {
             />
           }
         />
-        <Route path="/machines" element={<MachinesPage vessels={fleet.vessels}
-          onEditMachine={editMachine}
-          onDeleteMachine={deleteMachine} />} />
+
+        <Route
+          path="/machines"
+          element={
+            <MachinesPage
+              vessels={fleet.vessels}
+              onEditMachine={editMachine}
+              onDeleteMachine={deleteMachine}
+            />
+          }
+        />
+
         <Route path="/add" element={<Navigate to="/vessels" replace />} />
         <Route path="/sync" element={<SyncPage />} />
+
         <Route
           path="/reports"
           element={<ReportsPage vessels={fleet.vessels} reports={fleet.reports} />}
         />
+
         <Route
           path="/reports/:reportId"
           element={<ReportDetailPage reports={fleet.reports} />}
         />
+
         <Route
           path="/vessels/:vesselId/machines"
           element={<ShipMachinesPage vessels={fleet.vessels} />}
         />
+
         <Route
           path="/vessels/:vesselId/machines/:machineId"
           element={
@@ -538,12 +608,15 @@ export default function App() {
               onUpdateMachineField={updateMachineField}
               onCreateReport={createReport}
               onAddMachinePhoto={addMachinePhoto}
-              getMachinePhotoCount={getMachinePhotoCount}
               onAddTaskPhoto={addTaskPhoto}
+              onDeleteMachinePhoto={deleteMachinePhoto}
+              onDeleteTaskPhoto={deleteTaskPhoto}
+              getMachinePhotoCount={getMachinePhotoCount}
               getTaskPhotoCount={getTaskPhotoCount}
             />
           }
         />
+
         <Route
           path="*"
           element={

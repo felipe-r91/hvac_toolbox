@@ -8,7 +8,8 @@ type Props = {
   onUpdateTask: (task: MaintenanceTask) => void;
   onAddTaskPhoto: (taskId: string, file: File) => void;
   getTaskPhotoCount: (taskId: string) => number;
-  getLatestTaskPhotoUrl: (taskId: string) => string | null;
+  getTaskPhotoUrls: (taskId: string) => string[];
+  onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
 };
 
 export function CategorySection({
@@ -17,7 +18,9 @@ export function CategorySection({
   onUpdateTask,
   onAddTaskPhoto,
   getTaskPhotoCount,
-  getLatestTaskPhotoUrl,
+  getTaskPhotoUrls,
+  onDeleteTaskPhoto,
+
 }: Props) {
   const [open, setOpen] = useState(category === "Daily");
   const completed = tasks.filter((task) => task.checked).length;
@@ -49,7 +52,8 @@ export function CategorySection({
               onChange={onUpdateTask}
               onAddTaskPhoto={onAddTaskPhoto}
               getTaskPhotoCount={getTaskPhotoCount}
-              getLatestTaskPhotoUrl={getLatestTaskPhotoUrl}
+              getTaskPhotoUrls={getTaskPhotoUrls}
+              onDeleteTaskPhoto={onDeleteTaskPhoto}
             />
           ))}
         </div>

@@ -24,7 +24,8 @@ type Props = {
   onChange: (task: MaintenanceTask) => void;
   onAddTaskPhoto: (taskId: string, file: File) => void;
   getTaskPhotoCount: (taskId: string) => number;
-  getLatestTaskPhotoUrl: (taskId: string) => string | null;
+  getTaskPhotoUrls: (taskId: string) => string[];
+  onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
 };
 
 export function TaskItem({
@@ -32,7 +33,8 @@ export function TaskItem({
   onChange,
   onAddTaskPhoto,
   getTaskPhotoCount,
-  getLatestTaskPhotoUrl,
+  getTaskPhotoUrls,
+  onDeleteTaskPhoto,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
 
@@ -102,18 +104,20 @@ export function TaskItem({
           {task.status === "fault" || task.status === "attention" ? (
             <PhotoCaptureField
               label="Task photo"
-              required
+              required={task.status === "fault" || task.status === "attention"}
               count={getTaskPhotoCount(task.id)}
-              previewUrl={getLatestTaskPhotoUrl(task.id)}
+              previewUrls={getTaskPhotoUrls(task.id)}
+              onDeletePhoto={(previewUrl) => onDeleteTaskPhoto(task.id, previewUrl)}
               onPick={(file) => onAddTaskPhoto(task.id, file)}
             />
           ) : <PhotoCaptureField
-              label="Task photo"
-              required={false}
-              count={getTaskPhotoCount(task.id)}
-              previewUrl={getLatestTaskPhotoUrl(task.id)}
-              onPick={(file) => onAddTaskPhoto(task.id, file)}
-            />}
+            label="Task photo"
+            required={false}
+            count={getTaskPhotoCount(task.id)}
+            previewUrls={getTaskPhotoUrls(task.id)}
+            onDeletePhoto={(previewUrl) => onDeleteTaskPhoto(task.id, previewUrl)}
+            onPick={(file) => onAddTaskPhoto(task.id, file)}
+          />}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block">
