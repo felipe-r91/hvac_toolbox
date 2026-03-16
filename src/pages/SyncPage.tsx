@@ -1,4 +1,4 @@
-import { usePwaUpdater } from "../hooks/usePWAupdater";
+import { usePwaUpdater } from "../hooks/usePwaUpdater";
 
 export function SyncPage() {
   const {
