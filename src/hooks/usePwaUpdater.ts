@@ -1,20 +1,26 @@
-import { registerSW } from "virtual:pwa-register";
+import { useRegisterSW } from "virtual:pwa-register/react";
 
 export function usePwaUpdater() {
-  let updateAvailable = false;
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    offlineReady: [offlineReady, setOfflineReady],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(registration) {
+      if (!registration) return;
 
-  const updateSW = registerSW({
-    onNeedRefresh() {
-      updateAvailable = true;
+      // Check periodically for a new Netlify deployment while the app is open
+      setInterval(() => {
+        registration.update();
+      }, 60 * 1000);
     },
   });
 
-  function updateApp() {
-    updateSW(true);
-  }
-
   return {
-    updateAvailable,
-    updateApp,
+    needRefresh,
+    offlineReady,
+    updateApp: () => updateServiceWorker(true),
+    dismissUpdate: () => setNeedRefresh(false),
+    dismissOfflineReady: () => setOfflineReady(false),
   };
 }

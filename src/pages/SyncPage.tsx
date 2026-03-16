@@ -1,7 +1,7 @@
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
 
 export function SyncPage() {
-  const { updateAvailable, updateApp } = usePwaUpdater();
+  const { needRefresh, updateApp } = usePwaUpdater();
 
   return (
     <section className="space-y-4">
@@ -16,7 +16,7 @@ export function SyncPage() {
           Version {__APP_VERSION__}
         </p>
 
-        {updateAvailable && (
+        {needRefresh && (
           <div className="mt-4 rounded-2xl bg-yellow-100 p-4 text-sm text-yellow-900">
             New version available.
           </div>

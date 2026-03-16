@@ -9,6 +9,7 @@ import {
   type Vessel,
   type MaintenanceTask,
 } from "../types/maintenance";
+import { PwaUpdatePrompt } from "./PwaUpdatePrompt";
 
 type Props = {
   children: ReactNode;
@@ -46,6 +47,10 @@ export function AppShell({
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-24 sm:px-6 lg:px-8">
     {children}
   </div>
+
+      <PwaUpdatePrompt />
+
+
       <NavigationTabs onOpenAdd={onOpenAddMenu} />
 
       <AddMenuModal
