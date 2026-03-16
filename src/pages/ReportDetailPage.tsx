@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { downloadJsonFile } from "../utils/downloadJson";
-import { type MaintenanceReport } from "../types/maintenance";
+import { type MaintenanceReport, type TaskStatus } from "../types/maintenance";
 
 type Props = {
   reports: MaintenanceReport[];
@@ -18,6 +18,23 @@ export function ReportDetailPage({ reports }: Props) {
 
   if (!report) {
     return <div className="p-6">Report not found.</div>;
+  }
+
+  function statusClasses(status: TaskStatus) {
+    switch (status) {
+      case "ok":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "attention":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "fault":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "not-applicable":
+        return "bg-slate-100 text-slate-700 border-slate-200";
+      case "skipped":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      default:
+        return "bg-blue-100 text-blue-800 border-blue-200";
+    }
   }
 
   return (
@@ -86,7 +103,7 @@ export function ReportDetailPage({ reports }: Props) {
                   </p>
                 </div>
 
-                <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-800">
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClasses(task.status)} `}>
                   {task.status}
                 </span>
               </div>

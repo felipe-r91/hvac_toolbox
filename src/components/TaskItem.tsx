@@ -107,7 +107,13 @@ export function TaskItem({
               previewUrl={getLatestTaskPhotoUrl(task.id)}
               onPick={(file) => onAddTaskPhoto(task.id, file)}
             />
-          ) : null}
+          ) : <PhotoCaptureField
+              label="Task photo"
+              required={false}
+              count={getTaskPhotoCount(task.id)}
+              previewUrl={getLatestTaskPhotoUrl(task.id)}
+              onPick={(file) => onAddTaskPhoto(task.id, file)}
+            />}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block">

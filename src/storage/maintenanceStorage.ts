@@ -1,7 +1,7 @@
 import { seedFleet } from "../data/seedData";
 import { type FleetData } from "../types/maintenance";
 
-const STORAGE_KEY = "hvac-fleet-data-v1";
+const STORAGE_KEY = "hvac-fleet-data-v2";
 
 export function loadFleet(): FleetData {
   const raw = localStorage.getItem(STORAGE_KEY);

@@ -379,11 +379,15 @@ export default function App() {
       notes: "",
       measuredValue: "",
       completedAt: undefined,
+      photoIds: [],
     }));
 
     setFleet((current) => ({
       ...current,
       reports: [report, ...current.reports],
+      photos: current.photos.filter(
+        (photo) => !(photo.machineId === machineId && photo.kind === "task")
+      ),
       vessels: current.vessels.map((currentVessel) => {
         if (currentVessel.id !== vesselId) return currentVessel;
 

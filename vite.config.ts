@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa"
 export default defineConfig({
   plugins: [react(), tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: "auto",
       includeAssets: ["favicon.svg", "apple-touch-icon.png", "masked-icon.svg"],
       manifest: {
