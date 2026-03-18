@@ -49,7 +49,9 @@ export function ReportDetailPage({ reports }: Props) {
         <p className="mt-1 text-sm text-slate-500">
           {report.vesselName} · {report.machineModel} · {report.machineStarterType} · {report.machineType}
         </p>
-
+        <p className="mt-1 text-sm text-slate-500">
+          Serial Number: {report.machineSerialNumber}
+        </p>
         <p className="mt-1 text-sm text-slate-500">
           Completed at: {new Date(report.completedAt).toLocaleString()}
         </p>

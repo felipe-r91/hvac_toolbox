@@ -117,6 +117,7 @@ export type MaintenanceReport = {
   machineId: string;
   machineTag: string;
   machineModel: string;
+  machineSerialNumber: string;
   machineType: string;
   machineLocation: string;
   completedAt: string;

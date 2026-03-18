@@ -415,6 +415,7 @@ export default function App() {
       vesselName: vessel.name,
       machineId: plan.machine.id,
       machineTag: plan.machine.tag,
+      machineSerialNumber: plan.machine.serialNumber,
       machineModel: plan.machine.model,
       machineType: plan.machine.type,
       machineLocation: plan.machine.location,

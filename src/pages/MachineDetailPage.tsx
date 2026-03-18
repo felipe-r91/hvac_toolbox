@@ -167,7 +167,7 @@ export function MachineDetailPage({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search task, category, tool..."
-            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none sm:max-w-sm"
+            className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none sm:max-w-sm"
           />
 
           <div className="flex flex-wrap gap-2">
