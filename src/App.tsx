@@ -9,6 +9,7 @@ import {
   type MaintenanceTask,
   type NewMachinePayload,
   type NewVesselPayload,
+  type CorrectiveDraft,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -19,6 +20,7 @@ import { ReportsPage } from "./pages/ReportsPage";
 import { ReportDetailPage } from "./pages/ReportDetailPage";
 import { createId } from "./utils/createId";
 import { createTasksFromModel } from "./data/maintenancePlanLibrary";
+import { CorrectiveMaintenancePage } from "./pages/CorrectiveMaintenancePage";
 
 function MachineDetailRoute({
   fleet,
@@ -176,11 +178,11 @@ export default function App() {
       vessels: current.vessels.map((vessel) =>
         vessel.id === payload.id
           ? {
-              ...vessel,
-              name: payload.name,
-              imoNumber: payload.imoNumber,
-              description: payload.description,
-            }
+            ...vessel,
+            name: payload.name,
+            imoNumber: payload.imoNumber,
+            description: payload.description,
+          }
           : vessel
       ),
     }));
@@ -335,9 +337,9 @@ export default function App() {
           tasks: plan.tasks.map((task) =>
             task.id === taskId
               ? {
-                  ...task,
-                  photoIds: [...(task.photoIds || []), photoId],
-                }
+                ...task,
+                photoIds: [...(task.photoIds || []), photoId],
+              }
               : task
           ),
         })),
@@ -379,9 +381,9 @@ export default function App() {
           tasks: plan.tasks.map((task) =>
             task.id === taskId
               ? {
-                  ...task,
-                  photoIds: (task.photoIds || []).filter((id) => id !== photoToDelete.id),
-                }
+                ...task,
+                photoIds: (task.photoIds || []).filter((id) => id !== photoToDelete.id),
+              }
               : task
           ),
         })),
@@ -430,6 +432,7 @@ export default function App() {
       skippedCount,
       machinePhotoIds,
       tasks: plan.tasks.map((task) => ({ ...task })),
+      synced: false,
     };
 
     const resetTasks = plan.tasks.map((task) => ({
@@ -497,18 +500,18 @@ export default function App() {
           machines: vessel.machines.map((plan) =>
             plan.machine.id === payload.machineId
               ? {
-                  ...plan,
-                  machine: {
-                    ...plan.machine,
-                    location: payload.location,
-                    tag: payload.tag,
-                    model: payload.model,
-                    serialNumber: payload.serialNumber,
-                    type: payload.type,
-                    starterType: payload.starterType,
-                  },
-                  tasks: payload.tasks,
-                }
+                ...plan,
+                machine: {
+                  ...plan.machine,
+                  location: payload.location,
+                  tag: payload.tag,
+                  model: payload.model,
+                  serialNumber: payload.serialNumber,
+                  type: payload.type,
+                  starterType: payload.starterType,
+                },
+                tasks: payload.tasks,
+              }
               : plan
           ),
         };
@@ -530,6 +533,86 @@ export default function App() {
       reports: current.reports.filter((report) => report.machineId !== payload.machineId),
       photos: current.photos.filter((photo) => photo.machineId !== payload.machineId),
     }));
+  };
+
+  const saveCorrectiveDraft = (draft: CorrectiveDraft) => {
+    const payload = {
+      ...draft,
+      synced: false,
+    };
+
+    setFleet((current) => {
+      const existing = current.correctiveDrafts.find((item) => item.id === payload.id);
+
+      return {
+        ...current,
+        correctiveDrafts: existing
+          ? current.correctiveDrafts.map((item) =>
+            item.id === payload.id ? payload : item
+          )
+          : [payload, ...current.correctiveDrafts],
+      };
+    });
+  };
+
+  const deleteCorrectiveDraft = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      correctiveDrafts: current.correctiveDrafts.filter((item) => item.id !== draftId),
+    }));
+  };
+
+  const getCorrectiveDraftByMachine = (machineId: string) => {
+    return fleet.correctiveDrafts.find((item) => item.machineId === machineId) || null;
+  };
+
+  const markReportSynced = (reportId: string) => {
+    setFleet((current) => ({
+      ...current,
+      reports: current.reports.map((report) =>
+        report.id === reportId ? { ...report, synced: true } : report
+      ),
+    }));
+  };
+
+  const markCorrectiveDraftSynced = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      correctiveDrafts: current.correctiveDrafts.map((draft) =>
+        draft.id === draftId ? { ...draft, synced: true } : draft
+      ),
+    }));
+  };
+
+  const deletePreventiveReport = (reportId: string) => {
+    setFleet((current) => ({
+      ...current,
+      reports: current.reports.filter((report) => report.id !== reportId),
+    }));
+  };
+
+  const syncAllPendingItems = () => {
+    setFleet((current) => ({
+      ...current,
+      reports: current.reports.map((report) =>
+        report.synced ? report : { ...report, synced: true }
+      ),
+      correctiveDrafts: current.correctiveDrafts.map((draft) =>
+        draft.synced ? draft : { ...draft, synced: true }
+      ),
+    }));
+
+    alert("All pending items marked as synced.");
+  };
+
+  const syncPreventiveReport = (reportId: string) => {
+    markReportSynced(reportId);
+    alert("Preventive report synced.");
+  };
+
+  const syncCorrectiveDraft = (draftId: string) => {
+    markCorrectiveDraftSynced(draftId);
+    alert("Corrective draft synced.");
   };
 
   return (
@@ -579,7 +662,20 @@ export default function App() {
         />
 
         <Route path="/add" element={<Navigate to="/vessels" replace />} />
-        <Route path="/sync" element={<SyncPage />} />
+        <Route
+          path="/sync"
+          element={
+            <SyncPage
+              reports={fleet.reports}
+              correctiveDrafts={fleet.correctiveDrafts}
+              onSyncAll={syncAllPendingItems}
+              onSyncReport={syncPreventiveReport}
+              onSyncCorrectiveDraft={syncCorrectiveDraft}
+              onDeleteReport={deletePreventiveReport}
+              onDeleteCorrectiveDraft={deleteCorrectiveDraft}
+            />
+          }
+        />
 
         <Route
           path="/reports"
@@ -614,6 +710,18 @@ export default function App() {
               onDeleteTaskPhoto={deleteTaskPhoto}
               getMachinePhotoCount={getMachinePhotoCount}
               getTaskPhotoCount={getTaskPhotoCount}
+            />
+          }
+        />
+
+        <Route
+          path="/vessels/:vesselId/machines/:machineId/corrective"
+          element={
+            <CorrectiveMaintenancePage
+              vessels={fleet.vessels}
+              onSaveDraft={saveCorrectiveDraft}
+              onDeleteDraft={deleteCorrectiveDraft}
+              getExistingDraft={getCorrectiveDraftByMachine}
             />
           }
         />

@@ -131,12 +131,14 @@ export type MaintenanceReport = {
   faultCount?: number;
   machinePhotoIds?: string[];
   skippedCount?: number;
+  synced?: boolean;
 };
 
 export type FleetData = {
   vessels: Vessel[];
   reports: MaintenanceReport[];
   photos: PhotoRecord[];
+  correctiveDrafts: CorrectiveDraft[];
 };
 
 export type PhotoRecord = {
@@ -151,4 +153,43 @@ export type PhotoRecord = {
   required: boolean;
   synced: boolean;
   previewUrl?: string;
+};
+
+export type CorrectivePhoto = {
+  id: string;
+  previewUrl?: string;
+  filename: string;
+  caption: string;
+  createdAt: string;
+};
+
+export type CorrectiveDraft = {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  machineId: string;
+  machineTag: string;
+  machineModel: string;
+  machineType: string;
+  machineStarterType: string;
+  machineLocation: string;
+  createdAt: string;
+
+  problemSummary: string;
+  conditionFound: string;
+  symptomsObserved: string;
+  alarmsObserved: string;
+  operationalImpact: string;
+
+  preliminaryDiagnosis: string;
+  confirmedCause: string;
+
+  correctiveAction: string;
+  recommendations: string;
+  furtherActionRequired: string;
+
+  machineReturnedToService: "yes" | "no" | "unknown";
+
+  photos: CorrectivePhoto[];
+  synced?: boolean;
 };
