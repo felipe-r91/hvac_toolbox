@@ -50,7 +50,7 @@ export function MachinesPage({ vessels, onEditMachine, onDeleteMachine }: Props)
         </div>
 
         <p className="mt-1 text-sm text-slate-500">
-          Manage registered machines across the fleet.
+          Registered machines across the fleet.
         </p>
       </section>
 
