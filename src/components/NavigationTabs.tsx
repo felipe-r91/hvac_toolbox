@@ -1,11 +1,11 @@
-import { LuBoxes, LuFileText, LuPlus } from "react-icons/lu";
+import { LuFileText, LuPlus, LuThermometerSnowflake } from "react-icons/lu";
 import { RiShipLine } from "react-icons/ri";
 import { BiWorld } from "react-icons/bi";
 import { Link, useLocation } from "react-router-dom";
 
 const tabs = [
   { label: "Ships", to: "/vessels" , icon: <><RiShipLine size={28} /></>},
-  { label: "Machines", to: "/machines" , icon: <><LuBoxes size={28} /></>},
+  { label: "Machines", to: "/machines" , icon: <><LuThermometerSnowflake size={28} /></>},
   { label: "Add", to: "/add" , icon: <><LuPlus size={28} /></>},
   { label: "Sync Data", to: "/sync" , icon: <><BiWorld size={28} /></>},
   { label: "Settings", to: "/reports" , icon: <><LuFileText size={28} /></>},
@@ -42,7 +42,7 @@ export function NavigationTabs({ onOpenAdd }: Props) {
             <Link
               key={tab.label}
               to={tab.to}
-              className={`rounded-2xl px-3 py-3 text-center text-sm font-medium transition flex flex-col items-center gap-1 ${
+              className={`rounded-full px-3 w-14 py-3 text-center text-sm font-medium transition flex flex-col items-center gap-1 ${
                 active
                   ? "bg-slate-500 text-white shadow-sm"
                   : "bg-white text-slate-700"

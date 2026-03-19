@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { type CorrectiveDraft, type MaintenanceReport } from "../types/maintenance";
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
 
@@ -22,13 +23,116 @@ export function SyncPage({
 }: Props) {
   const { needRefresh, updateApp } = usePwaUpdater();
 
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
+
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncLabel, setSyncLabel] = useState("");
+
   const pendingReports = reports.filter((report) => !report.synced);
   const pendingCorrectiveDrafts = correctiveDrafts.filter((draft) => !draft.synced);
-
   const totalPending = pendingReports.length + pendingCorrectiveDrafts.length;
+
+  const runFakeProgress = (
+    setProgress: (value: number) => void,
+    onDone: () => void,
+    duration = 1800
+  ) => {
+    setProgress(0);
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const next = Math.min(95, Math.round((elapsed / duration) * 100));
+      setProgress(next);
+
+      if (elapsed >= duration) {
+        window.clearInterval(timer);
+        setProgress(100);
+        window.setTimeout(onDone, 250);
+      }
+    }, 120);
+  };
+
+  const handleUpdateApp = () => {
+    setUpdateLoading(true);
+
+    runFakeProgress(setUpdateProgress, async () => {
+      try {
+        await updateApp();
+      } finally {
+        setUpdateLoading(false);
+        setUpdateProgress(0);
+      }
+    }, 1400);
+  };
+
+  const handleSyncAll = () => {
+    if (totalPending === 0) return;
+
+    setSyncLoading(true);
+    setSyncLabel(`Syncing ${totalPending} pending item${totalPending === 1 ? "" : "s"}...`);
+
+    runFakeProgress(setSyncProgress, () => {
+      onSyncAll();
+      setSyncLoading(false);
+      setSyncProgress(0);
+      setSyncLabel("");
+    }, 1800);
+  };
+
+  const handleSyncReport = (reportId: string, machineTag: string) => {
+    setSyncLoading(true);
+    setSyncLabel(`Syncing preventive report for ${machineTag}...`);
+
+    runFakeProgress(setSyncProgress, () => {
+      onSyncReport(reportId);
+      setSyncLoading(false);
+      setSyncProgress(0);
+      setSyncLabel("");
+    }, 1400);
+  };
+
+  const handleSyncCorrectiveDraft = (draftId: string, machineTag: string) => {
+    setSyncLoading(true);
+    setSyncLabel(`Syncing corrective draft for ${machineTag}...`);
+
+    runFakeProgress(setSyncProgress, () => {
+      onSyncCorrectiveDraft(draftId);
+      setSyncLoading(false);
+      setSyncProgress(0);
+      setSyncLabel("");
+    }, 1400);
+  };
 
   return (
     <section className="space-y-4">
+      {(updateLoading || syncLoading) ? (
+        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">
+            {updateLoading ? "Updating application" : "Sync in progress"}
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {updateLoading
+              ? "Downloading and applying the latest app version."
+              : syncLabel || "Synchronizing local reports."}
+          </p>
+
+          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-slate-900 transition-all duration-200"
+              style={{ width: `${updateLoading ? updateProgress : syncProgress}%` }}
+            />
+          </div>
+
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            {updateLoading ? updateProgress : syncProgress}%
+          </p>
+        </section>
+      ) : null}
+
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">Application</h2>
 
@@ -45,18 +149,23 @@ export function SyncPage({
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
-            onClick={updateApp}
-            className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
+            onClick={handleUpdateApp}
+            disabled={updateLoading || syncLoading}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${
+              updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+            }`}
           >
             Update application
           </button>
 
           <button
             type="button"
-            onClick={onSyncAll}
-            disabled={totalPending === 0}
+            onClick={handleSyncAll}
+            disabled={totalPending === 0 || updateLoading || syncLoading}
             className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${
-              totalPending > 0 ? "bg-slate-900" : "bg-slate-300"
+              totalPending > 0 && !updateLoading && !syncLoading
+                ? "bg-slate-900"
+                : "bg-slate-300"
             }`}
           >
             Sync all pending items ({totalPending})
@@ -99,8 +208,11 @@ export function SyncPage({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => onSyncReport(report.id)}
-                      className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                      onClick={() => handleSyncReport(report.id, report.machineTag)}
+                      disabled={updateLoading || syncLoading}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
+                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                      }`}
                     >
                       Sync
                     </button>
@@ -108,11 +220,10 @@ export function SyncPage({
                     <button
                       type="button"
                       onClick={() => {
-                        const confirmed = window.confirm(
-                          "Delete this preventive report?"
-                        );
+                        const confirmed = window.confirm("Delete this preventive report?");
                         if (confirmed) onDeleteReport(report.id);
                       }}
+                      disabled={updateLoading || syncLoading}
                       className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200"
                     >
                       Delete
@@ -164,8 +275,11 @@ export function SyncPage({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => onSyncCorrectiveDraft(draft.id)}
-                      className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                      onClick={() => handleSyncCorrectiveDraft(draft.id, draft.machineTag)}
+                      disabled={updateLoading || syncLoading}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
+                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                      }`}
                     >
                       Sync
                     </button>
@@ -173,11 +287,10 @@ export function SyncPage({
                     <button
                       type="button"
                       onClick={() => {
-                        const confirmed = window.confirm(
-                          "Delete this corrective draft?"
-                        );
+                        const confirmed = window.confirm("Delete this corrective draft?");
                         if (confirmed) onDeleteCorrectiveDraft(draft.id);
                       }}
+                      disabled={updateLoading || syncLoading}
                       className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200"
                     >
                       Delete

@@ -1,6 +1,6 @@
 import { RiShipLine } from "react-icons/ri";
 import { Modal } from "./Modal";
-import { LuBoxes } from "react-icons/lu";
+import { LuThermometerSnowflake } from "react-icons/lu";
 
 type Props = {
   open: boolean;
@@ -31,7 +31,7 @@ export function AddMenuModal({ open, onClose, onChooseShips, onChooseMachines }:
           className="rounded-3xl bg-slate-100 px-4 py-6 text-left ring-1 ring-slate-200"
         >
           <div className="flex gap-6">
-            <LuBoxes size={28} />
+            <LuThermometerSnowflake size={28} />
           <div className="mt-1 text-sm text-slate-500">Create a new machine.</div>
           </div>
         </button>

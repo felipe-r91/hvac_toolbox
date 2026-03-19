@@ -21,6 +21,8 @@ import { ReportDetailPage } from "./pages/ReportDetailPage";
 import { createId } from "./utils/createId";
 import { createTasksFromModel } from "./data/maintenancePlanLibrary";
 import { CorrectiveMaintenancePage } from "./pages/CorrectiveMaintenancePage";
+import { CorrectiveReportDetailPage } from "./pages/CorrectiveReportDetailPage";
+import { MachineViewPage } from "./pages/MachineViewPage";
 
 function MachineDetailRoute({
   fleet,
@@ -679,7 +681,13 @@ export default function App() {
 
         <Route
           path="/reports"
-          element={<ReportsPage vessels={fleet.vessels} reports={fleet.reports} />}
+          element={
+            <ReportsPage
+              vessels={fleet.vessels}
+              reports={fleet.reports}
+              correctiveDrafts={fleet.correctiveDrafts}
+            />
+          }
         />
 
         <Route
@@ -715,6 +723,11 @@ export default function App() {
         />
 
         <Route
+          path="/machines/:machineId"
+          element={<MachineViewPage vessels={fleet.vessels} />}
+        />
+
+        <Route
           path="/vessels/:vesselId/machines/:machineId/corrective"
           element={
             <CorrectiveMaintenancePage
@@ -724,6 +737,11 @@ export default function App() {
               getExistingDraft={getCorrectiveDraftByMachine}
             />
           }
+        />
+
+        <Route
+          path="/corrective-reports/:draftId"
+          element={<CorrectiveReportDetailPage correctiveDrafts={fleet.correctiveDrafts} />}
         />
 
         <Route

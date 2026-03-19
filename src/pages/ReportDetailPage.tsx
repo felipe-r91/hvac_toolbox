@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
-import { downloadJsonFile } from "../utils/downloadJson";
 import { type MaintenanceReport, type TaskStatus } from "../types/maintenance";
 
 type Props = {
@@ -123,14 +122,6 @@ export function ReportDetailPage({ reports }: Props) {
           ))}
         </div>
       </section>
-
-      <button
-        type="button"
-        onClick={() => downloadJsonFile(report, `${report.machineTag}-report.json`)}
-        className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
-      >
-        Export report JSON
-      </button>
     </section>
   );
 }

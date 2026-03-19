@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
-import { type MaintenanceReport, type Vessel } from "../types/maintenance";
+import {
+  type CorrectiveDraft,
+  type MaintenanceReport,
+  type Vessel,
+} from "../types/maintenance";
 import { LuFileText } from "react-icons/lu";
 
 type Props = {
   vessels: Vessel[];
   reports: MaintenanceReport[];
+  correctiveDrafts: CorrectiveDraft[];
 };
 
 function statusBadge(status: "online" | "down") {
@@ -13,23 +18,48 @@ function statusBadge(status: "online" | "down") {
     : "bg-red-100 text-red-800 ring-red-200";
 }
 
-export function ReportsPage({ vessels, reports }: Props) {
+type MachineHistoryItem =
+  | {
+    id: string;
+    kind: "preventive";
+    date: string;
+    status: "online" | "down";
+    label: string;
+    preventiveReport: MaintenanceReport;
+  }
+  | {
+    id: string;
+    kind: "corrective";
+    date: string;
+    status: "online" | "down";
+    label: string;
+    correctiveDraft: CorrectiveDraft;
+  };
+
+export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
   return (
     <section className="space-y-4">
       <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <div className="flex justify-between">
-            <h1 className="text-2xl font-semibold text-slate-900">Reports</h1>
-            <LuFileText size={32} className="mt-2 text-slate-500" />
+          <h1 className="text-2xl font-semibold text-slate-900">Reports</h1>
+          <LuFileText size={32} className="mt-2 text-slate-500" />
         </div>
-        
-        <p className="mt-1 text-sm text-slate-500">
-          Maintenance history
-        </p>
+
+        <p className="mt-1 text-sm text-slate-500">Maintenance history</p>
       </section>
 
       <section className="space-y-4">
         {vessels.map((vessel) => {
-          const vesselReports = reports.filter((report) => report.vesselId === vessel.id);
+          const vesselPreventiveReports = reports.filter(
+            (report) => report.vesselId === vessel.id
+          );
+
+          const vesselCorrectiveDrafts = correctiveDrafts.filter(
+            (draft) => draft.vesselId === vessel.id
+          );
+
+          const vesselHistoryCount =
+            vesselPreventiveReports.length + vesselCorrectiveDrafts.length;
 
           return (
             <details
@@ -48,22 +78,49 @@ export function ReportsPage({ vessels, reports }: Props) {
                   </div>
 
                   <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                    {vesselReports.length} reports
+                    {vesselHistoryCount} reports
                   </div>
                 </div>
               </summary>
 
               <div className="mt-4 space-y-3">
                 {vessel.machines.map((plan) => {
-                  const machineReports = vesselReports
+                  const machinePreventiveReports = vesselPreventiveReports
                     .filter((report) => report.machineId === plan.machine.id)
-                    .sort(
-                      (a, b) =>
-                        new Date(b.completedAt).getTime() -
-                        new Date(a.completedAt).getTime()
+                    .map(
+                      (report): MachineHistoryItem => ({
+                        id: report.id,
+                        kind: "preventive",
+                        date: report.completedAt,
+                        status: report.overallStatus,
+                        label: new Date(report.completedAt).toLocaleString(),
+                        preventiveReport: report,
+                      })
                     );
 
-                  const latestReport = machineReports[0] || null;
+                  const machineCorrectiveDrafts = vesselCorrectiveDrafts
+                    .filter((draft) => draft.machineId === plan.machine.id)
+                    .map(
+                      (draft): MachineHistoryItem => ({
+                        id: draft.id,
+                        kind: "corrective",
+                        date: draft.createdAt,
+                        status:
+                          draft.machineReturnedToService === "yes" ? "online" : "down",
+                        label: new Date(draft.createdAt).toLocaleString(),
+                        correctiveDraft: draft,
+                      })
+                    );
+
+                  const machineHistory = [
+                    ...machinePreventiveReports,
+                    ...machineCorrectiveDrafts,
+                  ].sort(
+                    (a, b) =>
+                      new Date(b.date).getTime() - new Date(a.date).getTime()
+                  );
+
+                  const latestItem = machineHistory[0] || null;
 
                   return (
                     <details
@@ -80,33 +137,63 @@ export function ReportsPage({ vessels, reports }: Props) {
                               {plan.machine.location}
                             </p>
                             <p className="text-sm text-slate-500">
-                              {plan.machine.model} · {plan.machine.starterType} ·{plan.machine.type}
+                              {plan.machine.model} · {plan.machine.starterType} ·{" "}
+                              {plan.machine.type}
                             </p>
                           </div>
 
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${
-                              latestReport
-                                ? statusBadge(latestReport.overallStatus)
+                            className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${latestItem
+                                ? statusBadge(latestItem.status)
                                 : "bg-slate-100 text-slate-600 ring-slate-200"
-                            }`}
+                              }`}
                           >
-                            {latestReport ? latestReport.overallStatus : "no report"}
+                            {latestItem ? latestItem.status : "no report"}
                           </span>
                         </div>
                       </summary>
 
                       <div className="mt-4 space-y-2">
-                        {machineReports.length > 0 ? (
-                          machineReports.map((report) => (
-                            <Link
-                              key={report.id}
-                              to={`/reports/${report.id}`}
-                              className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
-                            >
-                              {new Date(report.completedAt).toLocaleString()}
-                            </Link>
-                          ))
+                        {machineHistory.length > 0 ? (
+                          machineHistory.map((item) => {
+                            if (item.kind === "preventive") {
+                              return (
+                                <Link
+                                  key={item.id}
+                                  to={`/reports/${item.id}`}
+                                  className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>{item.label}</span>
+                                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
+                                      Preventive
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            }
+
+                            return (
+                              <Link
+                                key={item.id}
+                                to={`/corrective-reports/${item.id}`}
+                                className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <div>{item.label}</div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                      {item.correctiveDraft.problemSummary || "Corrective maintenance draft"}
+                                    </div>
+                                  </div>
+
+                                  <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800">
+                                    Corrective
+                                  </span>
+                                </div>
+                              </Link>
+                            );
+                          })
                         ) : (
                           <div className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-500 ring-1 ring-slate-200">
                             No reports for this machine yet
