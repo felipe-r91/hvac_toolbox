@@ -23,6 +23,10 @@ import { createTasksFromModel } from "./data/maintenancePlanLibrary";
 import { CorrectiveMaintenancePage } from "./pages/CorrectiveMaintenancePage";
 import { CorrectiveReportDetailPage } from "./pages/CorrectiveReportDetailPage";
 import { MachineViewPage } from "./pages/MachineViewPage";
+import { compressImageFile } from "./utils/imageCompression";
+import { savePhotoBlob, getPhotoBlob, deletePhotoBlob } from "./storage/photoDb";
+
+const API_BASE_URL = "http://localhost:8080";
 
 function MachineDetailRoute({
   fleet,
@@ -286,9 +290,24 @@ export default function App() {
     }));
   };
 
-  const addMachinePhoto = (machineId: string, file: File) => {
+  const addMachinePhoto = async (machineId: string, file: File) => {
+    const compressedFile = await compressImageFile(file, {
+      maxWidth: 1600,
+      maxHeight: 1600,
+      quality: 0.78,
+      mimeType: "image/jpeg",
+    });
+
     const photoId = createId();
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(compressedFile);
+
+    await savePhotoBlob({
+      id: photoId,
+      blob: compressedFile,
+      filename: compressedFile.name,
+      mimeType: compressedFile.type,
+      createdAt: new Date().toISOString(),
+    });
 
     setFleet((current) => ({
       ...current,
@@ -300,20 +319,36 @@ export default function App() {
           id: photoId,
           machineId,
           kind: "machine",
-          filename: file.name,
-          mimeType: file.type,
+          filename: compressedFile.name,
+          mimeType: compressedFile.type,
           createdAt: new Date().toISOString(),
           required: true,
           synced: false,
           previewUrl,
+          blobStored: true,
         },
       ],
     }));
   };
 
-  const addTaskPhoto = (machineId: string, taskId: string, file: File) => {
+  const addTaskPhoto = async (machineId: string, taskId: string, file: File) => {
+    const compressedFile = await compressImageFile(file, {
+      maxWidth: 1600,
+      maxHeight: 1600,
+      quality: 0.78,
+      mimeType: "image/jpeg",
+    });
+
     const photoId = createId();
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(compressedFile);
+
+    await savePhotoBlob({
+      id: photoId,
+      blob: compressedFile,
+      filename: compressedFile.name,
+      mimeType: compressedFile.type,
+      createdAt: new Date().toISOString(),
+    });
 
     setFleet((current) => ({
       ...current,
@@ -324,12 +359,13 @@ export default function App() {
           machineId,
           taskId,
           kind: "task",
-          filename: file.name,
-          mimeType: file.type,
+          filename: compressedFile.name,
+          mimeType: compressedFile.type,
           createdAt: new Date().toISOString(),
           required: true,
           synced: false,
           previewUrl,
+          blobStored: true,
         },
       ],
       vessels: current.vessels.map((vessel) => ({
@@ -350,6 +386,12 @@ export default function App() {
   };
 
   const deleteMachinePhoto = (machineId: string, previewUrl: string) => {
+
+    const photoToDelete = fleet.photos.find((photo) => photo.previewUrl === previewUrl)
+
+    if (!photoToDelete) return;
+    deletePhotoBlob(photoToDelete.id)
+
     setFleet((current) => ({
       ...current,
       photos: current.photos.filter(
@@ -372,6 +414,7 @@ export default function App() {
     );
 
     if (!photoToDelete) return;
+    deletePhotoBlob(photoToDelete.id)
 
     setFleet((current) => ({
       ...current,
@@ -401,86 +444,100 @@ export default function App() {
     fleet.photos.filter((photo) => photo.taskId === taskId && photo.kind === "task").length;
 
   const createReport = (vesselId: string, machineId: string) => {
-    const vessel = fleet.vessels.find((item) => item.id === vesselId);
-    const plan = vessel?.machines.find((item) => item.machine.id === machineId);
+  const vessel = fleet.vessels.find((item) => item.id === vesselId);
+  const plan = vessel?.machines.find((item) => item.machine.id === machineId);
 
-    if (!vessel || !plan) return null;
+  if (!vessel || !plan) return null;
 
-    const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
-    const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
+  const reportId = createId();
 
-    const machinePhotoIds = fleet.photos
-      .filter((photo) => photo.machineId === plan.machine.id && photo.kind === "machine")
-      .map((photo) => photo.id);
+  const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
+  const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
 
-    const report: MaintenanceReport = {
-      id: createId(),
-      vesselId: vessel.id,
-      vesselName: vessel.name,
-      machineId: plan.machine.id,
-      machineTag: plan.machine.tag,
-      machineSerialNumber: plan.machine.serialNumber,
-      machineModel: plan.machine.model,
-      machineType: plan.machine.type,
-      machineLocation: plan.machine.location,
-      machineStarterType: plan.machine.starterType,
-      completedAt: new Date().toISOString(),
-      overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
-      downtimeReason: plan.machine.downtimeReason || "",
-      failureComponent: plan.machine.failureComponent,
-      failureMode: plan.machine.failureMode,
-      failureNotes: plan.machine.failureNotes || "",
-      faultCount,
-      skippedCount,
-      machinePhotoIds,
-      tasks: plan.tasks.map((task) => ({ ...task })),
-      synced: false,
-    };
+  const machinePhotoIds = fleet.photos
+    .filter((photo) => photo.machineId === plan.machine.id && photo.kind === "machine")
+    .map((photo) => photo.id);
 
-    const resetTasks = plan.tasks.map((task) => ({
-      ...task,
-      checked: false,
-      status: "pending" as const,
-      notes: "",
-      measuredValue: "",
-      completedAt: undefined,
-      photoIds: [],
-    }));
-
-    setFleet((current) => ({
-      ...current,
-      reports: [report, ...current.reports],
-      photos: current.photos.filter(
-        (photo) => !(photo.machineId === machineId && photo.kind === "task")
-      ),
-      vessels: current.vessels.map((currentVessel) => {
-        if (currentVessel.id !== vesselId) return currentVessel;
-
-        return {
-          ...currentVessel,
-          machines: currentVessel.machines.map((currentPlan) => {
-            if (currentPlan.machine.id !== machineId) return currentPlan;
-
-            return {
-              ...currentPlan,
-              machine: {
-                ...currentPlan.machine,
-                operatingStatus: "online",
-                downtimeReason: "",
-                failureComponent: undefined,
-                failureMode: undefined,
-                failureNotes: "",
-              },
-              tasks: resetTasks,
-            };
-          }),
-        };
-      }),
-    }));
-
-    return report.id;
+  const report: MaintenanceReport = {
+    id: reportId,
+    vesselId: vessel.id,
+    vesselName: vessel.name,
+    machineId: plan.machine.id,
+    machineTag: plan.machine.tag,
+    machineSerialNumber: plan.machine.serialNumber,
+    machineModel: plan.machine.model,
+    machineType: plan.machine.type,
+    machineLocation: plan.machine.location,
+    machineStarterType: plan.machine.starterType,
+    completedAt: new Date().toISOString(),
+    overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
+    downtimeReason: plan.machine.downtimeReason || "",
+    failureComponent: plan.machine.failureComponent,
+    failureMode: plan.machine.failureMode,
+    failureNotes: plan.machine.failureNotes || "",
+    faultCount,
+    skippedCount,
+    machinePhotoIds,
+    tasks: plan.tasks.map((task) => ({ ...task })),
+    synced: false,
   };
 
+  const resetTasks = plan.tasks.map((task) => ({
+    ...task,
+    checked: false,
+    status: "pending" as const,
+    notes: "",
+    measuredValue: "",
+    completedAt: undefined,
+    photoIds: [],
+  }));
+
+  setFleet((current) => ({
+    ...current,
+    reports: [report, ...current.reports],
+
+    // KEEP preventive photos, but now bind them to this report
+    photos: current.photos.map((photo) => {
+      if (photo.machineId !== machineId) return photo;
+
+      const isMachinePhoto = photo.kind === "machine";
+      const isTaskPhoto = photo.kind === "task";
+
+      if (!isMachinePhoto && !isTaskPhoto) return photo;
+
+      return {
+        ...photo,
+        reportId,
+      };
+    }),
+
+    vessels: current.vessels.map((currentVessel) => {
+      if (currentVessel.id !== vesselId) return currentVessel;
+
+      return {
+        ...currentVessel,
+        machines: currentVessel.machines.map((currentPlan) => {
+          if (currentPlan.machine.id !== machineId) return currentPlan;
+
+          return {
+            ...currentPlan,
+            machine: {
+              ...currentPlan.machine,
+              operatingStatus: "online",
+              downtimeReason: "",
+              failureComponent: undefined,
+              failureMode: undefined,
+              failureNotes: "",
+            },
+            tasks: resetTasks,
+          };
+        }),
+      };
+    }),
+  }));
+
+  return reportId;
+};
   const editMachine = (payload: {
     vesselId: string;
     machineId: string;
@@ -593,29 +650,266 @@ export default function App() {
     }));
   };
 
-  const syncAllPendingItems = () => {
-    setFleet((current) => ({
-      ...current,
-      reports: current.reports.map((report) =>
-        report.synced ? report : { ...report, synced: true }
-      ),
-      correctiveDrafts: current.correctiveDrafts.map((draft) =>
-        draft.synced ? draft : { ...draft, synced: true }
-      ),
-    }));
+  const syncAllPendingItems = async () => {
+  try {
+    for (const report of fleet.reports.filter((item) => !item.synced)) {
+      await postPreventiveReport(report);
+      await uploadPreventiveMachinePhotos(report);
+      await uploadPreventiveTaskPhotos(report);
+      await cleanupPreventiveReportPhotos(report);
+      markReportSynced(report.id);
+    }
 
-    alert("All pending items marked as synced.");
-  };
+    for (const draft of fleet.correctiveDrafts.filter((item) => !item.synced)) {
+      await postCorrectiveDraft(draft);
 
-  const syncPreventiveReport = (reportId: string) => {
+      for (const photo of draft.photos) {
+        await uploadPhotoRecord({
+          ownerType: "CORRECTIVE_DRAFT",
+          ownerId: draft.id,
+          machineId: draft.machineId,
+          caption: photo.caption,
+          photoId: photo.id,
+        });
+      }
+
+      await cleanupCorrectiveDraftPhotos(draft);
+      markCorrectiveDraftSynced(draft.id);
+    }
+
+    alert("All pending items synced successfully.");
+  } catch (error) {
+    console.error(error);
+    alert("Failed to sync all pending items.");
+  }
+};
+
+  const syncPreventiveReport = async (reportId: string) => {
+  const report = fleet.reports.find((item) => item.id === reportId);
+
+  if (!report) {
+    alert("Preventive report not found.");
+    return;
+  }
+
+  try {
+    await postPreventiveReport(report);
+    await uploadPreventiveMachinePhotos(report);
+    await uploadPreventiveTaskPhotos(report);
+    await cleanupPreventiveReportPhotos(report);
+
     markReportSynced(reportId);
-    alert("Preventive report synced.");
+    alert("Preventive report synced successfully.");
+  } catch (error) {
+    console.error(error);
+    alert("Failed to sync preventive report.");
+  }
+};
+
+  const syncCorrectiveDraft = async (draftId: string) => {
+  const draft = fleet.correctiveDrafts.find((item) => item.id === draftId);
+
+  if (!draft) {
+    alert("Corrective draft not found.");
+    return;
+  }
+
+  try {
+    await postCorrectiveDraft(draft);
+
+    for (const photo of draft.photos) {
+      await uploadPhotoRecord({
+        ownerType: "CORRECTIVE_DRAFT",
+        ownerId: draft.id,
+        machineId: draft.machineId,
+        caption: photo.caption,
+        photoId: photo.id,
+      });
+    }
+
+    await cleanupCorrectiveDraftPhotos(draft);
+    markCorrectiveDraftSynced(draftId);
+
+    alert("Corrective draft synced successfully.");
+  } catch (error) {
+    console.error(error);
+    alert("Failed to sync corrective draft.");
+  }
+};
+
+  const postCorrectiveDraft = async (draft: CorrectiveDraft) => {
+    const payload = {
+      ...draft,
+      photos: draft.photos.map((photo) => ({
+        id: photo.id,
+        filename: photo.filename,
+        caption: photo.caption,
+        createdAt: photo.createdAt,
+        previewUrl: `/api/photos/${photo.id}`,
+      })),
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/sync/corrective`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Corrective sync failed: ${text}`);
+    }
+
+    return response.json();
   };
 
-  const syncCorrectiveDraft = (draftId: string) => {
-    markCorrectiveDraftSynced(draftId);
-    alert("Corrective draft synced.");
+  const postPreventiveReport = async (report: MaintenanceReport) => {
+    const response = await fetch(`${API_BASE_URL}/api/sync/preventive`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(report),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Preventive sync failed: ${text}`);
+    }
+
+    return response.json();
   };
+
+  const uploadPhotoRecord = async ({
+    ownerType,
+    ownerId,
+    machineId,
+    taskId,
+    caption,
+    photoId,
+  }: {
+    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK";
+    ownerId: string;
+    machineId: string;
+    taskId?: string;
+    caption?: string;
+    photoId: string;
+  }) => {
+    const stored = await getPhotoBlob(photoId);
+
+    if (!stored) {
+      throw new Error(`Photo blob not found in IndexedDB for photo ${photoId}`);
+    }
+
+    const file = new File([stored.blob], stored.filename, {
+      type: stored.mimeType,
+      lastModified: Date.now(),
+    });
+
+    const formData = new FormData();
+    formData.append("ownerType", ownerType);
+    formData.append("ownerId", ownerId);
+    formData.append("machineId", machineId);
+
+    if (taskId) {
+      formData.append("taskId", taskId);
+    }
+
+    formData.append("caption", caption || "");
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE_URL}/api/photos/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Photo upload failed: ${text}`);
+    }
+
+    return response.json();
+  };
+
+  const uploadPreventiveMachinePhotos = async (report: MaintenanceReport) => {
+  const machinePhotos = fleet.photos.filter(
+    (photo) =>
+      photo.reportId === report.id &&
+      photo.machineId === report.machineId &&
+      photo.kind === "machine" &&
+      report.machinePhotoIds?.includes(photo.id)
+  );
+
+  for (const photo of machinePhotos) {
+    await uploadPhotoRecord({
+      ownerType: "PREVENTIVE_MACHINE",
+      ownerId: report.id,
+      machineId: report.machineId,
+      caption: "Machine identification photo",
+      photoId: photo.id,
+    });
+  }
+};
+
+  const uploadPreventiveTaskPhotos = async (report: MaintenanceReport) => {
+  for (const task of report.tasks) {
+    const taskPhotoIds = task.photoIds || [];
+    if (taskPhotoIds.length === 0) continue;
+
+    const taskPhotos = fleet.photos.filter(
+      (photo) =>
+        photo.reportId === report.id &&
+        photo.machineId === report.machineId &&
+        photo.kind === "task" &&
+        photo.taskId === task.id &&
+        taskPhotoIds.includes(photo.id)
+    );
+
+    for (const photo of taskPhotos) {
+      await uploadPhotoRecord({
+        ownerType: "PREVENTIVE_TASK",
+        ownerId: report.id,
+        machineId: report.machineId,
+        taskId: task.id,
+        caption: task.task,
+        photoId: photo.id,
+      });
+    }
+  }
+};
+
+const cleanupPreventiveReportPhotos = async (report: MaintenanceReport) => {
+  const relatedPhotos = fleet.photos.filter((photo) => photo.reportId === report.id);
+
+  for (const photo of relatedPhotos) {
+    await deletePhotoBlob(photo.id);
+  }
+
+  setFleet((current) => ({
+    ...current,
+    photos: current.photos.filter((photo) => photo.reportId !== report.id),
+  }));
+};
+
+const cleanupCorrectiveDraftPhotos = async (draft: CorrectiveDraft) => {
+  for (const photo of draft.photos) {
+    await deletePhotoBlob(photo.id);
+  }
+
+  setFleet((current) => ({
+    ...current,
+    correctiveDrafts: current.correctiveDrafts.map((item) =>
+      item.id === draft.id
+        ? {
+            ...item,
+            photos: [],
+          }
+        : item
+    ),
+  }));
+};
 
   return (
     <AppShell

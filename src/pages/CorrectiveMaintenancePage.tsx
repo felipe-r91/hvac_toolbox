@@ -8,6 +8,8 @@ import {
   type Vessel,
 } from "../types/maintenance";
 import { createId } from "../utils/createId";
+import { compressImageFile } from "../utils/imageCompression";
+import { deletePhotoBlob, savePhotoBlob } from "../storage/photoDb";
 
 type Props = {
   vessels: Vessel[];
@@ -81,26 +83,43 @@ export function CorrectiveMaintenancePage({
     setDraft((current) => (current ? { ...current, [field]: value } : current));
   };
 
-  const addPhoto = (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
+  const addPhoto = async (file: File) => {
+  const compressedFile = await compressImageFile(file, {
+    maxWidth: 1600,
+    maxHeight: 1600,
+    quality: 0.78,
+    mimeType: "image/jpeg",
+  });
 
-    const photo: CorrectivePhoto = {
-      id: createId(),
-      filename: file.name,
-      caption: "",
-      createdAt: new Date().toISOString(),
-      previewUrl,
-    };
+  const photoId = createId();
+  const previewUrl = URL.createObjectURL(compressedFile);
 
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            photos: [...current.photos, photo],
-          }
-        : current
-    );
+  await savePhotoBlob({
+    id: photoId,
+    blob: compressedFile,
+    filename: compressedFile.name,
+    mimeType: compressedFile.type,
+    createdAt: new Date().toISOString(),
+  });
+
+  const photo: CorrectivePhoto = {
+    id: photoId,
+    filename: compressedFile.name,
+    caption: "",
+    createdAt: new Date().toISOString(),
+    previewUrl,
+    blobStored: true,
   };
+
+  setDraft((current) =>
+    current
+      ? {
+          ...current,
+          photos: [...current.photos, photo],
+        }
+      : current
+  );
+};
 
   const updatePhotoCaption = (photoId: string, caption: string) => {
     setDraft((current) =>
@@ -124,6 +143,9 @@ export function CorrectiveMaintenancePage({
           }
         : current
     );
+
+    deletePhotoBlob(photoId)
+
   };
 
   const saveDraftLocally = () => {

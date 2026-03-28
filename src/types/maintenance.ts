@@ -153,6 +153,7 @@ export type PhotoRecord = {
   required: boolean;
   synced: boolean;
   previewUrl?: string;
+  blobStored?: boolean;
 };
 
 export type CorrectivePhoto = {
@@ -161,6 +162,7 @@ export type CorrectivePhoto = {
   filename: string;
   caption: string;
   createdAt: string;
+  blobStored?: boolean;
 };
 
 export type CorrectiveDraft = {
