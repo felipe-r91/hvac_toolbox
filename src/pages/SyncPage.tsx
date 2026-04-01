@@ -2,12 +2,23 @@ import { useState } from "react";
 import { type CorrectiveDraft, type MaintenanceReport } from "../types/maintenance";
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
 
+export type SyncProgressInfo = {
+  percent: number;
+  label: string;
+};
+
 type Props = {
   reports: MaintenanceReport[];
   correctiveDrafts: CorrectiveDraft[];
-  onSyncAll: () => void;
-  onSyncReport: (reportId: string) => void;
-  onSyncCorrectiveDraft: (draftId: string) => void;
+  onSyncAll: (onProgress: (info: SyncProgressInfo) => void) => Promise<void>;
+  onSyncReport: (
+    reportId: string,
+    onProgress: (info: SyncProgressInfo) => void
+  ) => Promise<void>;
+  onSyncCorrectiveDraft: (
+    draftId: string,
+    onProgress: (info: SyncProgressInfo) => void
+  ) => Promise<void>;
   onDeleteReport: (reportId: string) => void;
   onDeleteCorrectiveDraft: (draftId: string) => void;
 };
@@ -24,7 +35,6 @@ export function SyncPage({
   const { needRefresh, updateApp } = usePwaUpdater();
 
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [updateProgress, setUpdateProgress] = useState(0);
 
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
@@ -34,111 +44,109 @@ export function SyncPage({
   const pendingCorrectiveDrafts = correctiveDrafts.filter((draft) => !draft.synced);
   const totalPending = pendingReports.length + pendingCorrectiveDrafts.length;
 
-  const runFakeProgress = (
-    setProgress: (value: number) => void,
-    onDone: () => void,
-    duration = 1800
-  ) => {
-    setProgress(0);
-
-    const startedAt = Date.now();
-    const timer = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      const next = Math.min(95, Math.round((elapsed / duration) * 100));
-      setProgress(next);
-
-      if (elapsed >= duration) {
-        window.clearInterval(timer);
-        setProgress(100);
-        window.setTimeout(onDone, 250);
-      }
-    }, 120);
-  };
-
-  const handleUpdateApp = () => {
+  const handleUpdateApp = async () => {
     setUpdateLoading(true);
 
-    runFakeProgress(setUpdateProgress, async () => {
-      try {
-        await updateApp();
-      } finally {
-        setUpdateLoading(false);
-        setUpdateProgress(0);
-      }
-    }, 1400);
+    try {
+      await updateApp();
+    } finally {
+      setUpdateLoading(false);
+    }
   };
 
-  const handleSyncAll = () => {
+  const handleSyncAll = async () => {
     if (totalPending === 0) return;
 
     setSyncLoading(true);
-    setSyncLabel(`Syncing ${totalPending} pending item${totalPending === 1 ? "" : "s"}...`);
+    setSyncProgress(0);
+    setSyncLabel(`Preparing sync for ${totalPending} pending item${totalPending === 1 ? "" : "s"}...`);
 
-    runFakeProgress(setSyncProgress, () => {
-      onSyncAll();
+    try {
+      await onSyncAll(({ percent, label }) => {
+        setSyncProgress(percent);
+        setSyncLabel(label);
+      });
+    } finally {
       setSyncLoading(false);
       setSyncProgress(0);
       setSyncLabel("");
-    }, 1800);
+    }
   };
 
-  const handleSyncReport = (reportId: string, machineTag: string) => {
+  const handleSyncReport = async (reportId: string, machineTag: string) => {
     setSyncLoading(true);
-    setSyncLabel(`Syncing preventive report for ${machineTag}...`);
+    setSyncProgress(0);
+    setSyncLabel(`Preparing preventive report for ${machineTag}...`);
 
-    runFakeProgress(setSyncProgress, () => {
-      onSyncReport(reportId);
+    try {
+      await onSyncReport(reportId, ({ percent, label }) => {
+        setSyncProgress(percent);
+        setSyncLabel(label);
+      });
+    } finally {
       setSyncLoading(false);
       setSyncProgress(0);
       setSyncLabel("");
-    }, 1400);
+    }
   };
 
-  const handleSyncCorrectiveDraft = (draftId: string, machineTag: string) => {
+  const handleSyncCorrectiveDraft = async (draftId: string, machineTag: string) => {
     setSyncLoading(true);
-    setSyncLabel(`Syncing corrective draft for ${machineTag}...`);
+    setSyncProgress(0);
+    setSyncLabel(`Preparing corrective draft for ${machineTag}...`);
 
-    runFakeProgress(setSyncProgress, () => {
-      onSyncCorrectiveDraft(draftId);
+    try {
+      await onSyncCorrectiveDraft(draftId, ({ percent, label }) => {
+        setSyncProgress(percent);
+        setSyncLabel(label);
+      });
+    } finally {
       setSyncLoading(false);
       setSyncProgress(0);
       setSyncLabel("");
-    }, 1400);
+    }
   };
 
   return (
     <section className="space-y-4">
-      {(updateLoading || syncLoading) ? (
+      {updateLoading ? (
         <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">
-            {updateLoading ? "Updating application" : "Sync in progress"}
-          </h2>
+          <h2 className="text-lg font-semibold text-slate-900">Updating application</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Downloading and applying the latest app version.
+          </p>
+
+          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full w-1/3 animate-pulse rounded-full bg-slate-900" />
+          </div>
+
+          <p className="mt-2 text-sm font-medium text-slate-700">Please wait...</p>
+        </section>
+      ) : null}
+
+      {syncLoading ? (
+        <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">Sync in progress</h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            {updateLoading
-              ? "Downloading and applying the latest app version."
-              : syncLabel || "Synchronizing local reports."}
+            {syncLabel || "Synchronizing local reports."}
           </p>
 
           <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-200">
             <div
               className="h-full rounded-full bg-slate-900 transition-all duration-200"
-              style={{ width: `${updateLoading ? updateProgress : syncProgress}%` }}
+              style={{ width: `${syncProgress}%` }}
             />
           </div>
 
-          <p className="mt-2 text-sm font-medium text-slate-700">
-            {updateLoading ? updateProgress : syncProgress}%
-          </p>
+          <p className="mt-2 text-sm font-medium text-slate-700">{syncProgress}%</p>
         </section>
       ) : null}
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">Application</h2>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Version {__APP_VERSION__}
-        </p>
+        <p className="mt-1 text-sm text-slate-500">Version {__APP_VERSION__}</p>
 
         {needRefresh ? (
           <div className="mt-4 rounded-2xl bg-yellow-100 p-4 text-sm text-yellow-900">
