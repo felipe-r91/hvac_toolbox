@@ -26,7 +26,7 @@ import { MachineViewPage } from "./pages/MachineViewPage";
 import { compressImageFile } from "./utils/imageCompression";
 import { savePhotoBlob, getPhotoBlob, deletePhotoBlob } from "./storage/photoDb";
 
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = "https://hvac-toolbox-backend.onrender.com";
 
 function MachineDetailRoute({
   fleet,
