@@ -210,3 +210,21 @@ export type UploadedPhotoRecord = {
   createdAt: string;
   previewUrl?: string;
 };
+
+export type FleetSyncPayload = {
+  vessels: {
+    id: string;
+    name: string;
+    imoNumber: string;
+    description: string;
+    machines: {
+      id: string;
+      location: string;
+      tag: string;
+      model: string;
+      serialNumber: string;
+      type: string;
+      starterType: string;
+    }[];
+  }[];
+};

@@ -11,6 +11,7 @@ import {
   type NewVesselPayload,
   type CorrectiveDraft,
   type UploadedPhotoRecord,
+  type FleetSyncPayload,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -666,19 +667,24 @@ export default function App() {
     const pendingDrafts = fleet.correctiveDrafts.filter((item) => !item.synced);
     const totalItems = pendingReports.length + pendingDrafts.length;
 
-    if (totalItems === 0) {
-      return;
-    }
-
-    let completedItems = 0;
-
     try {
+      reportProgress(onProgress, 5, "Syncing fleet master data...");
+      await postFleetSync();
+
+      if (totalItems === 0) {
+        reportProgress(onProgress, 100, "Fleet data synced successfully.");
+        alert("Fleet data synced successfully.");
+        return;
+      }
+
+      let completedItems = 0;
+
       for (const report of pendingReports) {
         await syncPreventiveReport(report.id, (info) => {
           const itemBase = completedItems / totalItems;
           const itemWeight = 1 / totalItems;
           const overallPercent = Math.round(
-            (itemBase + (info.percent / 100) * itemWeight) * 100
+            10 + (itemBase + (info.percent / 100) * itemWeight) * 90
           );
 
           reportProgress(onProgress, overallPercent, info.label);
@@ -687,7 +693,7 @@ export default function App() {
         completedItems += 1;
         reportProgress(
           onProgress,
-          Math.round((completedItems / totalItems) * 100),
+          Math.round(10 + (completedItems / totalItems) * 90),
           `Completed ${completedItems} of ${totalItems} items...`
         );
       }
@@ -697,7 +703,7 @@ export default function App() {
           const itemBase = completedItems / totalItems;
           const itemWeight = 1 / totalItems;
           const overallPercent = Math.round(
-            (itemBase + (info.percent / 100) * itemWeight) * 100
+            10 + (itemBase + (info.percent / 100) * itemWeight) * 90
           );
 
           reportProgress(onProgress, overallPercent, info.label);
@@ -706,7 +712,7 @@ export default function App() {
         completedItems += 1;
         reportProgress(
           onProgress,
-          Math.round((completedItems / totalItems) * 100),
+          Math.round(10 + (completedItems / totalItems) * 90),
           `Completed ${completedItems} of ${totalItems} items...`
         );
       }
@@ -732,6 +738,9 @@ export default function App() {
     }
 
     try {
+      reportProgress(onProgress, 5, `Syncing fleet data for ${report.machineTag}...`);
+      await postFleetSync();
+
       reportProgress(onProgress, 10, `Sending preventive report for ${report.machineTag}...`);
       await postPreventiveReport(report);
 
@@ -763,73 +772,76 @@ export default function App() {
   };
 
   const syncCorrectiveDraft = async (
-  draftId: string,
-  onProgress?: (info: SyncProgressInfo) => void
-) => {
-  const draft = fleet.correctiveDrafts.find((item) => item.id === draftId);
+    draftId: string,
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const draft = fleet.correctiveDrafts.find((item) => item.id === draftId);
 
-  if (!draft) {
-    alert("Corrective draft not found.");
-    return;
-  }
-
-  try {
-    reportProgress(onProgress, 10, `Sending corrective draft for ${draft.machineTag}...`);
-    await postCorrectiveDraft(draft);
-
-    const totalPhotos = draft.photos.length;
-    const uploadedPhotos: Record<
-      string,
-      { remotePhotoId: string; previewUrl?: string }
-    > = {};
-
-    if (totalPhotos === 0) {
-      reportProgress(onProgress, 80, `No photos to upload for ${draft.machineTag}...`);
-    } else {
-      for (let index = 0; index < totalPhotos; index += 1) {
-        const photo = draft.photos[index];
-
-        const uploaded = await uploadPhotoRecord({
-          ownerType: "CORRECTIVE_DRAFT",
-          ownerId: draft.id,
-          machineId: draft.machineId,
-          caption: photo.caption,
-          photoId: photo.id,
-          onUploadProgress: (uploadPercent) => {
-            const fileStart = index / totalPhotos;
-            const fileSpan = 1 / totalPhotos;
-            const overallPercent = Math.round(
-              (0.15 + (fileStart + (uploadPercent / 100) * fileSpan) * 0.65) * 100
-            );
-
-            reportProgress(
-              onProgress,
-              overallPercent,
-              `Uploading photo ${index + 1} of ${totalPhotos} for ${draft.machineTag}...`
-            );
-          },
-        });
-
-        uploadedPhotos[photo.id] = {
-          remotePhotoId: uploaded.id,
-          previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
-        };
-      }
+    if (!draft) {
+      alert("Corrective draft not found.");
+      return;
     }
 
-    reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
-    await cleanupCorrectiveDraftPhotos(draft, uploadedPhotos);
+    try {
+      reportProgress(onProgress, 5, `Syncing fleet data for ${draft.machineTag}...`);
+      await postFleetSync();
 
-    markCorrectiveDraftSynced(draftId);
-    reportProgress(onProgress, 100, `Corrective draft for ${draft.machineTag} synced.`);
+      reportProgress(onProgress, 10, `Sending corrective draft for ${draft.machineTag}...`);
+      await postCorrectiveDraft(draft);
 
-    alert("Corrective draft synced successfully.");
-  } catch (error) {
-    console.error(error);
-    alert("Failed to sync corrective draft.");
-    throw error;
-  }
-};
+      const totalPhotos = draft.photos.length;
+      const uploadedPhotos: Record<
+        string,
+        { remotePhotoId: string; previewUrl?: string }
+      > = {};
+
+      if (totalPhotos === 0) {
+        reportProgress(onProgress, 80, `No photos to upload for ${draft.machineTag}...`);
+      } else {
+        for (let index = 0; index < totalPhotos; index += 1) {
+          const photo = draft.photos[index];
+
+          const uploaded = await uploadPhotoRecord({
+            ownerType: "CORRECTIVE_DRAFT",
+            ownerId: draft.id,
+            machineId: draft.machineId,
+            caption: photo.caption,
+            photoId: photo.id,
+            onUploadProgress: (uploadPercent) => {
+              const fileStart = index / totalPhotos;
+              const fileSpan = 1 / totalPhotos;
+              const overallPercent = Math.round(
+                (0.15 + (fileStart + (uploadPercent / 100) * fileSpan) * 0.65) * 100
+              );
+
+              reportProgress(
+                onProgress,
+                overallPercent,
+                `Uploading photo ${index + 1} of ${totalPhotos} for ${draft.machineTag}...`
+              );
+            },
+          });
+
+          uploadedPhotos[photo.id] = {
+            remotePhotoId: uploaded.id,
+            previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+          };
+        }
+      }
+
+      reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
+      await cleanupCorrectiveDraftPhotos(draft, uploadedPhotos);
+
+      markCorrectiveDraftSynced(draftId);
+      reportProgress(onProgress, 100, `Corrective draft for ${draft.machineTag} synced.`);
+
+      alert("Corrective draft synced successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync corrective draft.");
+      throw error;
+    }
+  };
 
   const postCorrectiveDraft = async (draft: CorrectiveDraft) => {
     const payload = {
@@ -1086,18 +1098,18 @@ export default function App() {
   };
 
   const cleanupCorrectiveDraftPhotos = async (
-  draft: CorrectiveDraft,
-  uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
-) => {
-  for (const photo of draft.photos) {
-    await deletePhotoBlob(photo.id);
-  }
+    draft: CorrectiveDraft,
+    uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
+  ) => {
+    for (const photo of draft.photos) {
+      await deletePhotoBlob(photo.id);
+    }
 
-  setFleet((current) => ({
-    ...current,
-    correctiveDrafts: current.correctiveDrafts.map((item) =>
-      item.id === draft.id
-        ? {
+    setFleet((current) => ({
+      ...current,
+      correctiveDrafts: current.correctiveDrafts.map((item) =>
+        item.id === draft.id
+          ? {
             ...item,
             photos: item.photos.map((photo) => ({
               ...photo,
@@ -1109,15 +1121,52 @@ export default function App() {
               file: undefined,
             })),
           }
-        : item
-    ),
-  }));
-};
+          : item
+      ),
+    }));
+  };
 
   const toAbsoluteApiUrl = (url?: string) => {
     if (!url) return undefined;
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
     return `${API_BASE_URL}${url}`;
+  };
+
+  const buildFleetSyncPayload = (fleet: FleetData): FleetSyncPayload => {
+    return {
+      vessels: fleet.vessels.map((vessel) => ({
+        id: vessel.id,
+        name: vessel.name,
+        imoNumber: vessel.imoNumber,
+        description: vessel.description || "",
+        machines: vessel.machines.map((plan) => ({
+          id: plan.machine.id,
+          location: plan.machine.location,
+          tag: plan.machine.tag,
+          model: plan.machine.model,
+          serialNumber: plan.machine.serialNumber,
+          type: plan.machine.type,
+          starterType: plan.machine.starterType,
+        })),
+      })),
+    };
+  };
+
+  const postFleetSync = async () => {
+    const payload = buildFleetSyncPayload(fleet);
+
+    const response = await fetch(`${API_BASE_URL}/api/fleet/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Fleet sync failed: ${text}`);
+    }
   };
 
   return (
