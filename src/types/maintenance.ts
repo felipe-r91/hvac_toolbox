@@ -154,6 +154,7 @@ export type PhotoRecord = {
   synced: boolean;
   previewUrl?: string;
   blobStored?: boolean;
+  remotePhotoId?: string;
 };
 
 export type CorrectivePhoto = {
@@ -161,8 +162,10 @@ export type CorrectivePhoto = {
   previewUrl?: string;
   filename: string;
   caption: string;
+  file?: File;
   createdAt: string;
   blobStored?: boolean;
+  remotePhotoId?: string;
 };
 
 export type CorrectiveDraft = {
@@ -194,4 +197,16 @@ export type CorrectiveDraft = {
 
   photos: CorrectivePhoto[];
   synced?: boolean;
+};
+
+export type UploadedPhotoRecord = {
+  id: string;
+  ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK";
+  ownerId: string;
+  machineId: string;
+  taskId?: string;
+  filename: string;
+  caption: string;
+  createdAt: string;
+  previewUrl?: string;
 };

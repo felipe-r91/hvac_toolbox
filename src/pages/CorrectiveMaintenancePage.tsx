@@ -134,19 +134,18 @@ export function CorrectiveMaintenancePage({
     );
   };
 
-  const deletePhoto = (photoId: string) => {
-    setDraft((current) =>
-      current
-        ? {
-            ...current,
-            photos: current.photos.filter((photo) => photo.id !== photoId),
-          }
-        : current
-    );
+  const deletePhoto = async (photoId: string) => {
+  setDraft((current) =>
+    current
+      ? {
+          ...current,
+          photos: current.photos.filter((photo) => photo.id !== photoId),
+        }
+      : current
+  );
 
-    deletePhotoBlob(photoId)
-
-  };
+  await deletePhotoBlob(photoId);
+};
 
   const saveDraftLocally = () => {
   const payload = { ...draft };

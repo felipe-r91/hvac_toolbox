@@ -10,6 +10,7 @@ import {
   type NewMachinePayload,
   type NewVesselPayload,
   type CorrectiveDraft,
+  type UploadedPhotoRecord,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -444,100 +445,100 @@ export default function App() {
     fleet.photos.filter((photo) => photo.taskId === taskId && photo.kind === "task").length;
 
   const createReport = (vesselId: string, machineId: string) => {
-  const vessel = fleet.vessels.find((item) => item.id === vesselId);
-  const plan = vessel?.machines.find((item) => item.machine.id === machineId);
+    const vessel = fleet.vessels.find((item) => item.id === vesselId);
+    const plan = vessel?.machines.find((item) => item.machine.id === machineId);
 
-  if (!vessel || !plan) return null;
+    if (!vessel || !plan) return null;
 
-  const reportId = createId();
+    const reportId = createId();
 
-  const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
-  const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
+    const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
+    const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
 
-  const machinePhotoIds = fleet.photos
-    .filter((photo) => photo.machineId === plan.machine.id && photo.kind === "machine")
-    .map((photo) => photo.id);
+    const machinePhotoIds = fleet.photos
+      .filter((photo) => photo.machineId === plan.machine.id && photo.kind === "machine")
+      .map((photo) => photo.id);
 
-  const report: MaintenanceReport = {
-    id: reportId,
-    vesselId: vessel.id,
-    vesselName: vessel.name,
-    machineId: plan.machine.id,
-    machineTag: plan.machine.tag,
-    machineSerialNumber: plan.machine.serialNumber,
-    machineModel: plan.machine.model,
-    machineType: plan.machine.type,
-    machineLocation: plan.machine.location,
-    machineStarterType: plan.machine.starterType,
-    completedAt: new Date().toISOString(),
-    overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
-    downtimeReason: plan.machine.downtimeReason || "",
-    failureComponent: plan.machine.failureComponent,
-    failureMode: plan.machine.failureMode,
-    failureNotes: plan.machine.failureNotes || "",
-    faultCount,
-    skippedCount,
-    machinePhotoIds,
-    tasks: plan.tasks.map((task) => ({ ...task })),
-    synced: false,
+    const report: MaintenanceReport = {
+      id: reportId,
+      vesselId: vessel.id,
+      vesselName: vessel.name,
+      machineId: plan.machine.id,
+      machineTag: plan.machine.tag,
+      machineSerialNumber: plan.machine.serialNumber,
+      machineModel: plan.machine.model,
+      machineType: plan.machine.type,
+      machineLocation: plan.machine.location,
+      machineStarterType: plan.machine.starterType,
+      completedAt: new Date().toISOString(),
+      overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
+      downtimeReason: plan.machine.downtimeReason || "",
+      failureComponent: plan.machine.failureComponent,
+      failureMode: plan.machine.failureMode,
+      failureNotes: plan.machine.failureNotes || "",
+      faultCount,
+      skippedCount,
+      machinePhotoIds,
+      tasks: plan.tasks.map((task) => ({ ...task })),
+      synced: false,
+    };
+
+    const resetTasks = plan.tasks.map((task) => ({
+      ...task,
+      checked: false,
+      status: "pending" as const,
+      notes: "",
+      measuredValue: "",
+      completedAt: undefined,
+      photoIds: [],
+    }));
+
+    setFleet((current) => ({
+      ...current,
+      reports: [report, ...current.reports],
+
+      // KEEP preventive photos, but now bind them to this report
+      photos: current.photos.map((photo) => {
+        if (photo.machineId !== machineId) return photo;
+
+        const isMachinePhoto = photo.kind === "machine";
+        const isTaskPhoto = photo.kind === "task";
+
+        if (!isMachinePhoto && !isTaskPhoto) return photo;
+
+        return {
+          ...photo,
+          reportId,
+        };
+      }),
+
+      vessels: current.vessels.map((currentVessel) => {
+        if (currentVessel.id !== vesselId) return currentVessel;
+
+        return {
+          ...currentVessel,
+          machines: currentVessel.machines.map((currentPlan) => {
+            if (currentPlan.machine.id !== machineId) return currentPlan;
+
+            return {
+              ...currentPlan,
+              machine: {
+                ...currentPlan.machine,
+                operatingStatus: "online",
+                downtimeReason: "",
+                failureComponent: undefined,
+                failureMode: undefined,
+                failureNotes: "",
+              },
+              tasks: resetTasks,
+            };
+          }),
+        };
+      }),
+    }));
+
+    return reportId;
   };
-
-  const resetTasks = plan.tasks.map((task) => ({
-    ...task,
-    checked: false,
-    status: "pending" as const,
-    notes: "",
-    measuredValue: "",
-    completedAt: undefined,
-    photoIds: [],
-  }));
-
-  setFleet((current) => ({
-    ...current,
-    reports: [report, ...current.reports],
-
-    // KEEP preventive photos, but now bind them to this report
-    photos: current.photos.map((photo) => {
-      if (photo.machineId !== machineId) return photo;
-
-      const isMachinePhoto = photo.kind === "machine";
-      const isTaskPhoto = photo.kind === "task";
-
-      if (!isMachinePhoto && !isTaskPhoto) return photo;
-
-      return {
-        ...photo,
-        reportId,
-      };
-    }),
-
-    vessels: current.vessels.map((currentVessel) => {
-      if (currentVessel.id !== vesselId) return currentVessel;
-
-      return {
-        ...currentVessel,
-        machines: currentVessel.machines.map((currentPlan) => {
-          if (currentPlan.machine.id !== machineId) return currentPlan;
-
-          return {
-            ...currentPlan,
-            machine: {
-              ...currentPlan.machine,
-              operatingStatus: "online",
-              downtimeReason: "",
-              failureComponent: undefined,
-              failureMode: undefined,
-              failureNotes: "",
-            },
-            tasks: resetTasks,
-          };
-        }),
-      };
-    }),
-  }));
-
-  return reportId;
-};
   const editMachine = (payload: {
     vesselId: string;
     machineId: string;
@@ -626,12 +627,12 @@ export default function App() {
   };
 
   const reportProgress = (
-  onProgress: ((info: SyncProgressInfo) => void) | undefined,
-  percent: number,
-  label: string
-) => {
-  onProgress?.({ percent, label });
-};
+    onProgress: ((info: SyncProgressInfo) => void) | undefined,
+    percent: number,
+    label: string
+  ) => {
+    onProgress?.({ percent, label });
+  };
 
   const markReportSynced = (reportId: string) => {
     setFleet((current) => ({
@@ -659,104 +660,107 @@ export default function App() {
   };
 
   const syncAllPendingItems = async (
-  onProgress?: (info: SyncProgressInfo) => void
-) => {
-  const pendingReports = fleet.reports.filter((item) => !item.synced);
-  const pendingDrafts = fleet.correctiveDrafts.filter((item) => !item.synced);
-  const totalItems = pendingReports.length + pendingDrafts.length;
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const pendingReports = fleet.reports.filter((item) => !item.synced);
+    const pendingDrafts = fleet.correctiveDrafts.filter((item) => !item.synced);
+    const totalItems = pendingReports.length + pendingDrafts.length;
 
-  if (totalItems === 0) {
-    return;
-  }
-
-  let completedItems = 0;
-
-  try {
-    for (const report of pendingReports) {
-      await syncPreventiveReport(report.id, (info) => {
-        const itemBase = completedItems / totalItems;
-        const itemWeight = 1 / totalItems;
-        const overallPercent = Math.round(
-          (itemBase + (info.percent / 100) * itemWeight) * 100
-        );
-
-        reportProgress(onProgress, overallPercent, info.label);
-      });
-
-      completedItems += 1;
-      reportProgress(
-        onProgress,
-        Math.round((completedItems / totalItems) * 100),
-        `Completed ${completedItems} of ${totalItems} items...`
-      );
+    if (totalItems === 0) {
+      return;
     }
 
-    for (const draft of pendingDrafts) {
-      await syncCorrectiveDraft(draft.id, (info) => {
-        const itemBase = completedItems / totalItems;
-        const itemWeight = 1 / totalItems;
-        const overallPercent = Math.round(
-          (itemBase + (info.percent / 100) * itemWeight) * 100
+    let completedItems = 0;
+
+    try {
+      for (const report of pendingReports) {
+        await syncPreventiveReport(report.id, (info) => {
+          const itemBase = completedItems / totalItems;
+          const itemWeight = 1 / totalItems;
+          const overallPercent = Math.round(
+            (itemBase + (info.percent / 100) * itemWeight) * 100
+          );
+
+          reportProgress(onProgress, overallPercent, info.label);
+        });
+
+        completedItems += 1;
+        reportProgress(
+          onProgress,
+          Math.round((completedItems / totalItems) * 100),
+          `Completed ${completedItems} of ${totalItems} items...`
         );
+      }
 
-        reportProgress(onProgress, overallPercent, info.label);
-      });
+      for (const draft of pendingDrafts) {
+        await syncCorrectiveDraft(draft.id, (info) => {
+          const itemBase = completedItems / totalItems;
+          const itemWeight = 1 / totalItems;
+          const overallPercent = Math.round(
+            (itemBase + (info.percent / 100) * itemWeight) * 100
+          );
 
-      completedItems += 1;
-      reportProgress(
-        onProgress,
-        Math.round((completedItems / totalItems) * 100),
-        `Completed ${completedItems} of ${totalItems} items...`
-      );
+          reportProgress(onProgress, overallPercent, info.label);
+        });
+
+        completedItems += 1;
+        reportProgress(
+          onProgress,
+          Math.round((completedItems / totalItems) * 100),
+          `Completed ${completedItems} of ${totalItems} items...`
+        );
+      }
+
+      reportProgress(onProgress, 100, "All pending items synced successfully.");
+      alert("All pending items synced successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync all pending items.");
+      throw error;
     }
-
-    reportProgress(onProgress, 100, "All pending items synced successfully.");
-    alert("All pending items synced successfully.");
-  } catch (error) {
-    console.error(error);
-    alert("Failed to sync all pending items.");
-    throw error;
-  }
-};
+  };
 
   const syncPreventiveReport = async (
-  reportId: string,
-  onProgress?: (info: SyncProgressInfo) => void
-) => {
-  const report = fleet.reports.find((item) => item.id === reportId);
+    reportId: string,
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const report = fleet.reports.find((item) => item.id === reportId);
 
-  if (!report) {
-    alert("Preventive report not found.");
-    return;
-  }
+    if (!report) {
+      alert("Preventive report not found.");
+      return;
+    }
 
-  try {
-    reportProgress(onProgress, 10, `Sending preventive report for ${report.machineTag}...`);
-    await postPreventiveReport(report);
+    try {
+      reportProgress(onProgress, 10, `Sending preventive report for ${report.machineTag}...`);
+      await postPreventiveReport(report);
 
-    reportProgress(onProgress, 20, `Uploading machine photos for ${report.machineTag}...`);
-    await uploadPreventiveMachinePhotos(report, (percent, label) => {
-      reportProgress(onProgress, 20 + Math.round(percent * 0.25), label);
-    });
+      reportProgress(onProgress, 20, `Uploading machine photos for ${report.machineTag}...`);
+      const uploadedMachinePhotos = await uploadPreventiveMachinePhotos(report, (percent, label) => {
+        reportProgress(onProgress, 20 + Math.round(percent * 0.25), label);
+      });
 
-    reportProgress(onProgress, 50, `Uploading task photos for ${report.machineTag}...`);
-    await uploadPreventiveTaskPhotos(report, (percent, label) => {
-      reportProgress(onProgress, 50 + Math.round(percent * 0.35), label);
-    });
+      reportProgress(onProgress, 50, `Uploading task photos for ${report.machineTag}...`);
+      const uploadedTaskPhotos = await uploadPreventiveTaskPhotos(report, (percent, label) => {
+        reportProgress(onProgress, 50 + Math.round(percent * 0.35), label);
+      });
 
-    reportProgress(onProgress, 90, `Cleaning local photo data for ${report.machineTag}...`);
-    await cleanupPreventiveReportPhotos(report);
+      reportProgress(onProgress, 90, `Cleaning local photo data for ${report.machineTag}...`);
+      await cleanupPreventiveReportPhotos(report, {
+        ...uploadedMachinePhotos,
+        ...uploadedTaskPhotos,
+      });
 
-    markReportSynced(reportId);
-    reportProgress(onProgress, 100, `Preventive report for ${report.machineTag} synced.`);
+      markReportSynced(reportId);
+      reportProgress(onProgress, 100, `Preventive report for ${report.machineTag} synced.`);
 
-    alert("Preventive report synced successfully.");
-  } catch (error) {
-    console.error(error);
-    alert("Failed to sync preventive report.");
-    throw error;
-  }
-};
+      alert("Preventive report synced successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync preventive report.");
+      throw error;
+    }
+  };
 
   const syncCorrectiveDraft = async (
   draftId: string,
@@ -774,6 +778,10 @@ export default function App() {
     await postCorrectiveDraft(draft);
 
     const totalPhotos = draft.photos.length;
+    const uploadedPhotos: Record<
+      string,
+      { remotePhotoId: string; previewUrl?: string }
+    > = {};
 
     if (totalPhotos === 0) {
       reportProgress(onProgress, 80, `No photos to upload for ${draft.machineTag}...`);
@@ -781,7 +789,7 @@ export default function App() {
       for (let index = 0; index < totalPhotos; index += 1) {
         const photo = draft.photos[index];
 
-        await uploadPhotoRecord({
+        const uploaded = await uploadPhotoRecord({
           ownerType: "CORRECTIVE_DRAFT",
           ownerId: draft.id,
           machineId: draft.machineId,
@@ -801,11 +809,16 @@ export default function App() {
             );
           },
         });
+
+        uploadedPhotos[photo.id] = {
+          remotePhotoId: uploaded.id,
+          previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+        };
       }
     }
 
     reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
-    await cleanupCorrectiveDraftPhotos(draft);
+    await cleanupCorrectiveDraftPhotos(draft, uploadedPhotos);
 
     markCorrectiveDraftSynced(draftId);
     reportProgress(onProgress, 100, `Corrective draft for ${draft.machineTag} synced.`);
@@ -864,186 +877,218 @@ export default function App() {
   };
 
   const uploadPhotoRecord = async ({
-  ownerType,
-  ownerId,
-  machineId,
-  taskId,
-  caption,
-  photoId,
-  onUploadProgress,
-}: {
-  ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK";
-  ownerId: string;
-  machineId: string;
-  taskId?: string;
-  caption?: string;
-  photoId: string;
-  onUploadProgress?: (percent: number) => void;
-}) => {
-  const stored = await getPhotoBlob(photoId);
+    ownerType,
+    ownerId,
+    machineId,
+    taskId,
+    caption,
+    photoId,
+    onUploadProgress,
+  }: {
+    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK";
+    ownerId: string;
+    machineId: string;
+    taskId?: string;
+    caption?: string;
+    photoId: string;
+    onUploadProgress?: (percent: number) => void;
+  }) => {
+    const stored = await getPhotoBlob(photoId);
 
-  if (!stored) {
-    throw new Error(`Photo blob not found in IndexedDB for photo ${photoId}`);
-  }
+    if (!stored) {
+      throw new Error(`Photo blob not found in IndexedDB for photo ${photoId}`);
+    }
 
-  const file = new File([stored.blob], stored.filename, {
-    type: stored.mimeType,
-    lastModified: Date.now(),
-  });
+    const file = new File([stored.blob], stored.filename, {
+      type: stored.mimeType,
+      lastModified: Date.now(),
+    });
 
-  const formData = new FormData();
-  formData.append("ownerType", ownerType);
-  formData.append("ownerId", ownerId);
-  formData.append("machineId", machineId);
+    const formData = new FormData();
+    formData.append("ownerType", ownerType);
+    formData.append("ownerId", ownerId);
+    formData.append("machineId", machineId);
 
-  if (taskId) {
-    formData.append("taskId", taskId);
-  }
+    if (taskId) {
+      formData.append("taskId", taskId);
+    }
 
-  formData.append("caption", caption || "");
-  formData.append("file", file);
+    formData.append("caption", caption || "");
+    formData.append("file", file);
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
+    return new Promise<UploadedPhotoRecord>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-    xhr.open("POST", `${API_BASE_URL}/api/photos/upload`);
+      xhr.open("POST", `${API_BASE_URL}/api/photos/upload`);
 
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) return;
-      const percent = Math.round((event.loaded / event.total) * 100);
-      onUploadProgress?.(percent);
-    };
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onUploadProgress?.(percent);
+      };
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
           resolve(JSON.parse(xhr.responseText));
-        } catch {
-          resolve(xhr.responseText);
+        } else {
+          reject(new Error(`Photo upload failed: ${xhr.responseText}`));
         }
-      } else {
-        reject(new Error(`Photo upload failed: ${xhr.responseText}`));
-      }
-    };
+      };
 
-    xhr.onerror = () => {
-      reject(new Error("Photo upload failed due to a network error."));
-    };
+      xhr.onerror = () => {
+        reject(new Error("Photo upload failed due to a network error."));
+      };
 
-    xhr.send(formData);
-  });
-};
+      xhr.send(formData);
+    });
+  };
 
   const uploadPreventiveMachinePhotos = async (
-  report: MaintenanceReport,
-  onProgress?: (percent: number, label: string) => void
-) => {
-  const machinePhotos = fleet.photos.filter(
-    (photo) =>
-      photo.reportId === report.id &&
-      photo.machineId === report.machineId &&
-      photo.kind === "machine" &&
-      report.machinePhotoIds?.includes(photo.id)
-  );
+    report: MaintenanceReport,
+    onProgress?: (percent: number, label: string) => void
+  ) => {
+    const machinePhotos = fleet.photos.filter(
+      (photo) =>
+        photo.reportId === report.id &&
+        photo.machineId === report.machineId &&
+        photo.kind === "machine" &&
+        report.machinePhotoIds?.includes(photo.id)
+    );
 
-  if (machinePhotos.length === 0) {
-    onProgress?.(100, `No machine photos for ${report.machineTag}.`);
-    return;
-  }
+    const uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }> = {};
 
-  for (let index = 0; index < machinePhotos.length; index += 1) {
-    const photo = machinePhotos[index];
+    if (machinePhotos.length === 0) {
+      onProgress?.(100, `No machine photos for ${report.machineTag}.`);
+      return uploadedPhotos;
+    }
 
-    await uploadPhotoRecord({
-      ownerType: "PREVENTIVE_MACHINE",
-      ownerId: report.id,
-      machineId: report.machineId,
-      caption: "Machine identification photo",
-      photoId: photo.id,
-      onUploadProgress: (uploadPercent) => {
-        const fileStart = (index / machinePhotos.length) * 100;
-        const fileSpan = 100 / machinePhotos.length;
-        const overallPercent = Math.round(
-          fileStart + (uploadPercent / 100) * fileSpan
-        );
+    for (let index = 0; index < machinePhotos.length; index += 1) {
+      const photo = machinePhotos[index];
 
-        onProgress?.(
-          overallPercent,
-          `Uploading machine photo ${index + 1} of ${machinePhotos.length} for ${report.machineTag}...`
-        );
-      },
-    });
-  }
-};
+      const uploaded = await uploadPhotoRecord({
+        ownerType: "PREVENTIVE_MACHINE",
+        ownerId: report.id,
+        machineId: report.machineId,
+        caption: "Machine identification photo",
+        photoId: photo.id,
+        onUploadProgress: (uploadPercent) => {
+          const fileStart = (index / machinePhotos.length) * 100;
+          const fileSpan = 100 / machinePhotos.length;
+          const overallPercent = Math.round(
+            fileStart + (uploadPercent / 100) * fileSpan
+          );
+
+          onProgress?.(
+            overallPercent,
+            `Uploading machine photo ${index + 1} of ${machinePhotos.length} for ${report.machineTag}...`
+          );
+        },
+      });
+
+      uploadedPhotos[photo.id] = {
+        remotePhotoId: uploaded.id,
+        previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+      };
+    }
+
+    return uploadedPhotos;
+  };
 
   const uploadPreventiveTaskPhotos = async (
-  report: MaintenanceReport,
-  onProgress?: (percent: number, label: string) => void
-) => {
-  const taskPhotoJobs = report.tasks.flatMap((task) => {
-    const taskPhotoIds = task.photoIds || [];
-    if (taskPhotoIds.length === 0) return [];
+    report: MaintenanceReport,
+    onProgress?: (percent: number, label: string) => void
+  ) => {
+    const taskPhotoJobs = report.tasks.flatMap((task) => {
+      const taskPhotoIds = task.photoIds || [];
+      if (taskPhotoIds.length === 0) return [];
 
-    return fleet.photos
-      .filter(
-        (photo) =>
-          photo.reportId === report.id &&
-          photo.machineId === report.machineId &&
-          photo.kind === "task" &&
-          photo.taskId === task.id &&
-          taskPhotoIds.includes(photo.id)
-      )
-      .map((photo) => ({
-        task,
-        photo,
-      }));
-  });
-
-  if (taskPhotoJobs.length === 0) {
-    onProgress?.(100, `No task photos for ${report.machineTag}.`);
-    return;
-  }
-
-  for (let index = 0; index < taskPhotoJobs.length; index += 1) {
-    const { task, photo } = taskPhotoJobs[index];
-
-    await uploadPhotoRecord({
-      ownerType: "PREVENTIVE_TASK",
-      ownerId: report.id,
-      machineId: report.machineId,
-      taskId: task.id,
-      caption: task.task,
-      photoId: photo.id,
-      onUploadProgress: (uploadPercent) => {
-        const fileStart = (index / taskPhotoJobs.length) * 100;
-        const fileSpan = 100 / taskPhotoJobs.length;
-        const overallPercent = Math.round(
-          fileStart + (uploadPercent / 100) * fileSpan
-        );
-
-        onProgress?.(
-          overallPercent,
-          `Uploading task photo ${index + 1} of ${taskPhotoJobs.length} for ${report.machineTag}...`
-        );
-      },
+      return fleet.photos
+        .filter(
+          (photo) =>
+            photo.reportId === report.id &&
+            photo.machineId === report.machineId &&
+            photo.kind === "task" &&
+            photo.taskId === task.id &&
+            taskPhotoIds.includes(photo.id)
+        )
+        .map((photo) => ({
+          task,
+          photo,
+        }));
     });
-  }
-};
 
-const cleanupPreventiveReportPhotos = async (report: MaintenanceReport) => {
-  const relatedPhotos = fleet.photos.filter((photo) => photo.reportId === report.id);
+    const uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }> = {};
 
-  for (const photo of relatedPhotos) {
-    await deletePhotoBlob(photo.id);
-  }
+    if (taskPhotoJobs.length === 0) {
+      onProgress?.(100, `No task photos for ${report.machineTag}.`);
+      return uploadedPhotos;
+    }
 
-  setFleet((current) => ({
-    ...current,
-    photos: current.photos.filter((photo) => photo.reportId !== report.id),
-  }));
-};
+    for (let index = 0; index < taskPhotoJobs.length; index += 1) {
+      const { task, photo } = taskPhotoJobs[index];
 
-const cleanupCorrectiveDraftPhotos = async (draft: CorrectiveDraft) => {
+      const uploaded = await uploadPhotoRecord({
+        ownerType: "PREVENTIVE_TASK",
+        ownerId: report.id,
+        machineId: report.machineId,
+        taskId: task.id,
+        caption: task.task,
+        photoId: photo.id,
+        onUploadProgress: (uploadPercent) => {
+          const fileStart = (index / taskPhotoJobs.length) * 100;
+          const fileSpan = 100 / taskPhotoJobs.length;
+          const overallPercent = Math.round(
+            fileStart + (uploadPercent / 100) * fileSpan
+          );
+
+          onProgress?.(
+            overallPercent,
+            `Uploading task photo ${index + 1} of ${taskPhotoJobs.length} for ${report.machineTag}...`
+          );
+        },
+      });
+
+      uploadedPhotos[photo.id] = {
+        remotePhotoId: uploaded.id,
+        previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+      };
+    }
+
+    return uploadedPhotos;
+  };
+
+  const cleanupPreventiveReportPhotos = async (
+    report: MaintenanceReport,
+    uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
+  ) => {
+    const relatedPhotos = fleet.photos.filter((photo) => photo.reportId === report.id);
+
+    for (const photo of relatedPhotos) {
+      await deletePhotoBlob(photo.id);
+    }
+
+    setFleet((current) => ({
+      ...current,
+      photos: current.photos.map((photo) => {
+        if (photo.reportId !== report.id) {
+          return photo;
+        }
+
+        return {
+          ...photo,
+          synced: true,
+          blobStored: false,
+          previewUrl: uploadedPhotos[photo.id]?.previewUrl ?? photo.previewUrl,
+          remotePhotoId: uploadedPhotos[photo.id]?.remotePhotoId ?? photo.remotePhotoId,
+        };
+      }),
+    }));
+  };
+
+  const cleanupCorrectiveDraftPhotos = async (
+  draft: CorrectiveDraft,
+  uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
+) => {
   for (const photo of draft.photos) {
     await deletePhotoBlob(photo.id);
   }
@@ -1054,12 +1099,26 @@ const cleanupCorrectiveDraftPhotos = async (draft: CorrectiveDraft) => {
       item.id === draft.id
         ? {
             ...item,
-            photos: [],
+            photos: item.photos.map((photo) => ({
+              ...photo,
+              previewUrl:
+                uploadedPhotos[photo.id]?.previewUrl ?? photo.previewUrl,
+              remotePhotoId:
+                uploadedPhotos[photo.id]?.remotePhotoId ?? photo.remotePhotoId,
+              blobStored: false,
+              file: undefined,
+            })),
           }
         : item
     ),
   }));
 };
+
+  const toAbsoluteApiUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${API_BASE_URL}${url}`;
+  };
 
   return (
     <AppShell
@@ -1136,7 +1195,7 @@ const cleanupCorrectiveDraftPhotos = async (draft: CorrectiveDraft) => {
 
         <Route
           path="/reports/:reportId"
-          element={<ReportDetailPage reports={fleet.reports} />}
+          element={<ReportDetailPage reports={fleet.reports} photos={fleet.photos} />}
         />
 
         <Route

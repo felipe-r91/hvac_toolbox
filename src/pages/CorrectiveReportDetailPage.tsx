@@ -45,7 +45,9 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
               <div className="text-xs font-medium text-slate-500">Location</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.machineLocation}</div>
+              <div className="mt-1 text-sm text-slate-900">
+                {draft.machineLocation}
+              </div>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
@@ -93,10 +95,18 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
                       alt={photo.caption || "Corrective report photo"}
                       className="h-56 w-full rounded-2xl object-cover"
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex h-56 items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-400">
+                      Photo unavailable
+                    </div>
+                  )}
 
                   <div className="mt-3 text-sm text-slate-700">
                     {photo.caption || "No caption"}
+                  </div>
+
+                  <div className="mt-1 text-xs text-slate-400">
+                    {photo.filename}
                   </div>
                 </div>
               ))}
