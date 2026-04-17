@@ -6,6 +6,15 @@ type Props = {
   correctiveDrafts: CorrectiveDraft[];
 };
 
+function formatFailureCode(code?: string) {
+  if (!code) return "—";
+
+  return code
+    .split("_")
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
   const { draftId } = useParams();
 
@@ -54,6 +63,35 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
               <div className="text-xs font-medium text-slate-500">Model</div>
               <div className="mt-1 text-sm text-slate-900">
                 {draft.machineModel} · {draft.machineStarterType}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Failure Classification
+          </h2>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div className="text-xs font-medium text-slate-500">Failure component</div>
+              <div className="mt-1 text-sm text-slate-900">
+                {draft.failureComponent || "—"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div className="text-xs font-medium text-slate-500">Failure mode</div>
+              <div className="mt-1 text-sm text-slate-900">
+                {draft.failureMode || "—"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+              <div className="text-xs font-medium text-slate-500">Failure code</div>
+              <div className="mt-1 text-sm text-slate-900">
+                {formatFailureCode(draft.failureCode)}
               </div>
             </div>
           </div>

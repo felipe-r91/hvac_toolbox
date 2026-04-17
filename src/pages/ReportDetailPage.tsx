@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import {
   type MaintenanceReport,
@@ -25,22 +25,20 @@ export function ReportDetailPage({ reports, photos }: Props) {
   }
 
   const machinePhotos = photos.filter(
-    (photo) =>
-      photo.reportId === report.id &&
-      photo.machineId === report.machineId &&
-      photo.kind === "machine" &&
-      report.machinePhotoIds?.includes(photo.id)
-  );
+  (photo) =>
+    photo.kind === "machine" &&
+    photo.reportId === report.id &&
+    report.machinePhotoIds?.includes(photo.id)
+);
 
-  function getTaskPhotos(taskId: string) {
-    return photos.filter(
-      (photo) =>
-        photo.reportId === report?.id &&
-        photo.machineId === report?.machineId &&
-        photo.taskId === taskId &&
-        photo.kind === "task"
-    );
-  }
+function getTaskPhotos(taskId: string) {
+  return photos.filter(
+    (photo) =>
+      photo.reportId === report?.id &&
+      photo.taskId === taskId &&
+      photo.kind === "task"
+  );
+}
 
   function statusClasses(status: TaskStatus) {
     switch (status) {
@@ -84,8 +82,9 @@ export function ReportDetailPage({ reports, photos }: Props) {
             Overall status:
           </p>
           <p
-            className={`my-2 text-sm font-medium ${report.overallStatus === "down" ? "text-red-500" : "text-green-500"
-              }`}
+            className={`my-2 text-sm font-medium ${
+              report.overallStatus === "down" ? "text-red-500" : "text-green-500"
+            }`}
           >
             {report.overallStatus.toUpperCase()}
           </p>
@@ -102,6 +101,9 @@ export function ReportDetailPage({ reports, photos }: Props) {
                 <strong>Failure mode:</strong> {report.failureMode || "—"}
               </p>
               <p>
+                <strong>Failure code:</strong> {report.failureCode || "—"}
+              </p>
+              <p>
                 <strong>Downtime reason:</strong> {report.downtimeReason || "—"}
               </p>
               <p>
@@ -111,6 +113,25 @@ export function ReportDetailPage({ reports, photos }: Props) {
           </section>
         ) : null}
       </section>
+
+      {report.linkedCorrectiveDraftId ? (
+        <section className="rounded-3xl bg-yellow-50 p-5 shadow-sm ring-1 ring-yellow-200">
+          <h2 className="text-lg font-semibold text-yellow-900">
+            Linked corrective report created
+          </h2>
+          <p className="mt-2 text-sm text-yellow-800">
+            This maintenance visit detected a failure and automatically created a
+            corrective report for follow-up and recurring failure analysis.
+          </p>
+
+          <Link
+            to={`/corrective-reports/${report.linkedCorrectiveDraftId}`}
+            className="mt-4 inline-flex rounded-2xl bg-yellow-600 px-4 py-2 text-sm font-medium text-white"
+          >
+            Open corrective report
+          </Link>
+        </section>
+      ) : null}
 
       <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">Machine Photos</h2>
