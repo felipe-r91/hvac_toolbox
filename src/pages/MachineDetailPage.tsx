@@ -92,6 +92,7 @@ export function MachineDetailPage({
         machinePhotoValid &&
         plan.machine.failureComponent &&
         plan.machine.failureMode &&
+        plan.machine.failureCode &&
         (plan.machine.failureNotes || plan.machine.downtimeReason) &&
         allRequiredTaskPhotosValid
       )
@@ -127,6 +128,7 @@ export function MachineDetailPage({
             onUpdateMachineField("downtimeReason", "");
             onUpdateMachineField("failureComponent", "");
             onUpdateMachineField("failureMode", "");
+            onUpdateMachineField("failureCode", "");
             onUpdateMachineField("failureNotes", "");
           }
         }}
@@ -137,12 +139,16 @@ export function MachineDetailPage({
         operatingStatus={plan.machine.operatingStatus || "online"}
         failureComponent={plan.machine.failureComponent || ""}
         failureMode={plan.machine.failureMode || ""}
+        failureCode={plan.machine.failureCode || ""}
         failureNotes={plan.machine.failureNotes || ""}
         onFailureComponentChange={(value) =>
           onUpdateMachineField("failureComponent", value)
         }
         onFailureModeChange={(value) =>
           onUpdateMachineField("failureMode", value)
+        }
+        onFailureCodeChange={(value) =>
+          onUpdateMachineField("failureCode", value)
         }
         onFailureNotesChange={(value) =>
           onUpdateMachineField("failureNotes", value)

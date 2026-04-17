@@ -64,6 +64,7 @@ export type MachineMeta = {
   downtimeReason?: string;
   failureComponent?: FailureComponent;
   failureMode?: FailureMode;
+  failureCode?: FailureCode;
   failureNotes?: string;
 };
 
@@ -126,6 +127,7 @@ export type MaintenanceReport = {
   downtimeReason?: string;
   failureComponent?: FailureComponent;
   failureMode?: FailureMode;
+  failureCode?: FailureCode;
   failureNotes?: string;
   tasks: MaintenanceTask[];
   faultCount?: number;
@@ -180,6 +182,10 @@ export type CorrectiveDraft = {
   machineLocation: string;
   createdAt: string;
 
+  failureComponent?: FailureComponent;
+  failureMode?: FailureMode;
+  failureCode?: FailureCode;
+
   problemSummary: string;
   conditionFound: string;
   symptomsObserved: string;
@@ -228,3 +234,27 @@ export type FleetSyncPayload = {
     }[];
   }[];
 };
+
+export type FailureCode =
+  | "NO_REFRIGERANT_CHARGE"
+  | "REFRIGERANT_LEAK"
+  | "HIGH_DISCHARGE_PRESSURE"
+  | "LOW_SUCTION_PRESSURE"
+  | "LOW_OIL_PRESSURE"
+  | "OIL_LEAK"
+  | "STARTER_TRIP"
+  | "MOTOR_OVERLOAD"
+  | "PHASE_LOSS_OR_IMBALANCE"
+  | "SENSOR_SIGNAL_LOSS"
+  | "SENSOR_OUT_OF_CALIBRATION"
+  | "COMMUNICATION_LOSS"
+  | "CONTROL_POWER_FAILURE"
+  | "WATER_FLOW_LOSS"
+  | "BRINE_FLOW_LOSS"
+  | "SOLENOID_VALVE_FAILURE"
+  | "EXPANSION_VALVE_FAILURE"
+  | "COMPRESSOR_NOT_RUNNING"
+  | "COMPRESSOR_MECHANICAL_DAMAGE"
+  | "HIGH_TEMPERATURE"
+  | "LOW_CAPACITY"
+  | "UNKNOWN";

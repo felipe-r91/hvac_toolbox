@@ -20,7 +20,7 @@ export function ChooseMaintenanceTypeModal({ open, onClose, onChoosePreventive, 
         >
           <div className="flex gap-6">
             <LiaListAltSolid size={28} />
-          <div className="mt-1 text-sm text-slate-500">Preventive Maintenance.</div>
+          <div className="mt-1 text-sm text-slate-500">Machine Maintenance.</div>
           </div>
           
         </button>
@@ -32,7 +32,7 @@ export function ChooseMaintenanceTypeModal({ open, onClose, onChoosePreventive, 
         >
           <div className="flex gap-6">
             <RiAlarmWarningLine size={28} />
-          <div className="mt-1 text-sm text-slate-500">Corrective Maintenance.</div>
+          <div className="mt-1 text-sm text-slate-500">Conditions Found Report.</div>
           </div>
         </button>
       </div>
