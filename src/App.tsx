@@ -12,6 +12,7 @@ import {
   type CorrectiveDraft,
   type UploadedPhotoRecord,
   type FleetSyncPayload,
+  type FinishMaintenanceResult,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -124,7 +125,7 @@ function MachineDetailRouteWithNavigation(props: {
     field: keyof MachineMeta,
     value: string
   ) => void;
-  onCreateReport: (vesselId: string, machineId: string) => string | null;
+  onCreateReport: (vesselId: string, machineId: string) => FinishMaintenanceResult | null;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
   onDeleteMachinePhoto: (machineId: string, previewUrl: string) => void;
@@ -138,10 +139,17 @@ function MachineDetailRouteWithNavigation(props: {
     <MachineDetailRoute
       {...props}
       onFinishMaintenance={(vesselId, machineId) => {
-        const reportId = props.onCreateReport(vesselId, machineId);
-        if (reportId) {
-          navigate(`/reports/${reportId}`);
+        const result = props.onCreateReport(vesselId, machineId);
+
+        if (!result) return;
+
+        if (result.redirectedTo === "corrective" && result.linkedCorrectiveDraftId) {
+          alert("Machine marked as down. A linked corrective report was created automatically.");
+          navigate(`/corrective-reports/${result.linkedCorrectiveDraftId}`);
+          return;
         }
+
+        navigate(`/reports/${result.reportId}`);
       }}
     />
   );
@@ -446,20 +454,25 @@ export default function App() {
   const getTaskPhotoCount = (taskId: string) =>
     fleet.photos.filter((photo) => photo.taskId === taskId && photo.kind === "task").length;
 
-  const createReport = (vesselId: string, machineId: string) => {
+  const createReport = (vesselId: string, machineId: string): FinishMaintenanceResult | null => {
     const vessel = fleet.vessels.find((item) => item.id === vesselId);
     const plan = vessel?.machines.find((item) => item.machine.id === machineId);
 
     if (!vessel || !plan) return null;
 
+    const completedAt = new Date().toISOString();
     const reportId = createId();
+    const shouldCreateCorrective = plan.machine.operatingStatus === "down";
+    const correctiveDraftId = shouldCreateCorrective ? createId() : undefined;
 
     const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
     const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
 
-    const machinePhotoIds = fleet.photos
-      .filter((photo) => photo.machineId === plan.machine.id && photo.kind === "machine")
-      .map((photo) => photo.id);
+    const machinePhotos = fleet.photos.filter(
+      (photo) => photo.machineId === plan.machine.id && photo.kind === "machine"
+    );
+
+    const machinePhotoIds = machinePhotos.map((photo) => photo.id);
 
     const report: MaintenanceReport = {
       id: reportId,
@@ -472,19 +485,80 @@ export default function App() {
       machineType: plan.machine.type,
       machineLocation: plan.machine.location,
       machineStarterType: plan.machine.starterType,
-      completedAt: new Date().toISOString(),
+      completedAt,
       overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
       downtimeReason: plan.machine.downtimeReason || "",
       failureComponent: plan.machine.failureComponent,
-      failureCode: plan.machine.failureCode,
       failureMode: plan.machine.failureMode,
+      failureCode: plan.machine.failureCode,
       failureNotes: plan.machine.failureNotes || "",
       faultCount,
       skippedCount,
       machinePhotoIds,
       tasks: plan.tasks.map((task) => ({ ...task })),
       synced: false,
+      linkedCorrectiveDraftId: correctiveDraftId,
     };
+
+    const linkedCorrectiveDraft: CorrectiveDraft | null = shouldCreateCorrective
+      ? {
+        id: correctiveDraftId!,
+        vesselId: vessel.id,
+        vesselName: vessel.name,
+        machineId: plan.machine.id,
+        machineTag: plan.machine.tag,
+        machineModel: plan.machine.model,
+        machineType: plan.machine.type,
+        machineStarterType: plan.machine.starterType,
+        machineLocation: plan.machine.location,
+        createdAt: completedAt,
+
+        failureComponent: plan.machine.failureComponent,
+        failureMode: plan.machine.failureMode,
+        failureCode: plan.machine.failureCode,
+
+        problemSummary:
+          plan.machine.failureNotes?.trim() ||
+          plan.machine.downtimeReason?.trim() ||
+          `${plan.machine.tag} found down during preventive maintenance.`,
+
+        conditionFound:
+          plan.machine.failureNotes?.trim() ||
+          plan.machine.downtimeReason?.trim() ||
+          "Failure detected during preventive maintenance visit.",
+
+        symptomsObserved: plan.tasks
+          .filter((task) => task.status === "fault" || task.status === "attention")
+          .map((task) => {
+            const note = task.notes?.trim();
+            return note ? `${task.task}: ${note}` : task.task;
+          })
+          .join("\n"),
+
+        alarmsObserved: "",
+        operationalImpact:
+          plan.machine.downtimeReason?.trim() || "Machine unavailable for normal operation.",
+
+        preliminaryDiagnosis: "",
+        confirmedCause: "",
+        correctiveAction: "",
+        recommendations: "",
+        furtherActionRequired: "",
+
+        machineReturnedToService: "no",
+        photos: machinePhotos.map((photo) => ({
+          id: photo.id,
+          filename: photo.filename,
+          caption: "Photo captured during preventive maintenance",
+          createdAt: photo.createdAt,
+          previewUrl: photo.previewUrl,
+          blobStored: photo.blobStored,
+          remotePhotoId: photo.remotePhotoId,
+        })),
+        synced: false,
+        sourcePreventiveReportId: reportId,
+      }
+      : null;
 
     const resetTasks = plan.tasks.map((task) => ({
       ...task,
@@ -499,22 +573,12 @@ export default function App() {
     setFleet((current) => ({
       ...current,
       reports: [report, ...current.reports],
-
-      // KEEP preventive photos, but now bind them to this report
-      photos: current.photos.map((photo) => {
-        if (photo.machineId !== machineId) return photo;
-
-        const isMachinePhoto = photo.kind === "machine";
-        const isTaskPhoto = photo.kind === "task";
-
-        if (!isMachinePhoto && !isTaskPhoto) return photo;
-
-        return {
-          ...photo,
-          reportId,
-        };
-      }),
-
+      correctiveDrafts: linkedCorrectiveDraft
+        ? [linkedCorrectiveDraft, ...current.correctiveDrafts]
+        : current.correctiveDrafts,
+      photos: current.photos.filter(
+        (photo) => !(photo.machineId === machineId && photo.kind === "task")
+      ),
       vessels: current.vessels.map((currentVessel) => {
         if (currentVessel.id !== vesselId) return currentVessel;
 
@@ -541,8 +605,13 @@ export default function App() {
       }),
     }));
 
-    return reportId;
+    return {
+      reportId,
+      linkedCorrectiveDraftId: correctiveDraftId,
+      redirectedTo: shouldCreateCorrective ? "corrective" : "preventive",
+    };
   };
+
   const editMachine = (payload: {
     vesselId: string;
     machineId: string;

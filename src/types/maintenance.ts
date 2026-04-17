@@ -134,6 +134,7 @@ export type MaintenanceReport = {
   machinePhotoIds?: string[];
   skippedCount?: number;
   synced?: boolean;
+  linkedCorrectiveDraftId?: string;
 };
 
 export type FleetData = {
@@ -203,6 +204,7 @@ export type CorrectiveDraft = {
 
   photos: CorrectivePhoto[];
   synced?: boolean;
+  sourcePreventiveReportId?: string;
 };
 
 export type UploadedPhotoRecord = {
@@ -258,3 +260,9 @@ export type FailureCode =
   | "HIGH_TEMPERATURE"
   | "LOW_CAPACITY"
   | "UNKNOWN";
+
+  export type FinishMaintenanceResult = {
+  reportId: string;
+  linkedCorrectiveDraftId?: string;
+  redirectedTo: "preventive" | "corrective";
+};
