@@ -17,9 +17,7 @@ type BackendVessel = {
   name: string;
   imoNumber: string;
   description?: string;
-  machines: Array<{
-    machine: BackendMachine;
-  }>;
+  machines: BackendMachine[];
 };
 
 type BackendPlanTask = {
@@ -27,10 +25,10 @@ type BackendPlanTask = {
   category: MaintenanceTask["category"];
   task: string;
   tool?: string;
-  checked: boolean;
-  status: MaintenanceTask["status"];
-  notes: string;
-  measuredValue: string;
+  checked?: boolean;
+  status?: MaintenanceTask["status"];
+  notes?: string;
+  measuredValue?: string;
   unit?: string;
   required?: boolean;
   measurable?: boolean;
@@ -45,7 +43,6 @@ type BackendMachinePlanResponse = {
 
 export async function getFleetVessels(): Promise<BackendVessel[]> {
   const response = await fetch(`${API_BASE_URL}/api/fleet/vessels`);
-  console.log("Fleet vessels response:", response);
 
   if (!response.ok) {
     const text = await response.text();
@@ -87,8 +84,9 @@ export async function downloadFleetRegistry(): Promise<Vessel[]> {
 
   const machinePlanEntries = await Promise.all(
     vessels.flatMap((vessel) =>
-      vessel.machines.map(async ({ machine }) => {
+      vessel.machines.map(async (machine) => {
         const plan = await getMachinePlan(machine.id);
+
         return {
           vesselId: vessel.id,
           machineId: machine.id,
@@ -108,7 +106,7 @@ export async function downloadFleetRegistry(): Promise<Vessel[]> {
     name: vessel.name,
     imoNumber: vessel.imoNumber,
     description: vessel.description || "",
-    machines: vessel.machines.map(({ machine }) => {
+    machines: vessel.machines.map((machine) => {
       const entry = plansByMachineId.get(machine.id);
 
       return {
