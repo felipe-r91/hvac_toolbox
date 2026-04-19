@@ -1,21 +1,26 @@
-import { seedFleet } from "../data/seedData";
 import { type FleetData } from "../types/maintenance";
+import { emptyFleet } from "../data/emptyFleet";
 
 const STORAGE_KEY = "hvac-fleet-data-v3";
 
 export function loadFleet(): FleetData {
   const raw = localStorage.getItem(STORAGE_KEY);
 
-  if (!raw) return seedFleet;
+  if (!raw) return emptyFleet;
 
   try {
     const parsed = JSON.parse(raw) as FleetData;
-    if (!parsed.vessels || !Array.isArray(parsed.vessels) || parsed.vessels.length === 0) {
-      return seedFleet;
-    }
-    return parsed;
+
+    return {
+      vessels: Array.isArray(parsed.vessels) ? parsed.vessels : [],
+      reports: Array.isArray(parsed.reports) ? parsed.reports : [],
+      photos: Array.isArray(parsed.photos) ? parsed.photos : [],
+      correctiveDrafts: Array.isArray(parsed.correctiveDrafts)
+        ? parsed.correctiveDrafts
+        : [],
+    };
   } catch {
-    return seedFleet;
+    return emptyFleet;
   }
 }
 

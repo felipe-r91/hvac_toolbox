@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { InputField } from "./InputField";
-import { availableMachineModels, availableStartersModels } from "../data/maintenancePlanLibrary";
+import { getAvailableMachineModels, getAvailableStarterModels } from "../data/maintenancePlanLibrary";
 import { type MachinePlan } from "../types/maintenance";
 
 type EditingMachine = {
@@ -29,7 +29,7 @@ type Props = {
 export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
   const [location, setLocation] = useState("");
   const [tag, setTag] = useState("");
-  const [model, setModel] = useState(availableMachineModels[0] || "");
+  const [model, setModel] = useState(getAvailableMachineModels()[0] || "");
   const [serialNumber, setSerialNumber] = useState("");
   const [type, setType] = useState("");
   const [starterType, setStarterType] = useState("");
@@ -58,7 +58,7 @@ export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
             onChange={(e) => setModel(e.target.value)}
             className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
           >
-            {availableMachineModels.map((machineModel) => (
+            {getAvailableMachineModels().map((machineModel) => (
               <option key={machineModel} value={machineModel}>
                 {machineModel}
               </option>
@@ -72,9 +72,9 @@ export function EditMachineModal({ open, machine, onClose, onSave }: Props) {
             onChange={(e) => setStarterType(e.target.value)}
             className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
           >
-            {availableStartersModels.map((starterModels) => (
-              <option key={starterModels} value={starterModels}>
-                {starterModels}
+            {getAvailableStarterModels().map((starterModel) => (
+              <option key={starterModel} value={starterModel}>
+                {starterModel}
               </option>
             ))}
           </select>

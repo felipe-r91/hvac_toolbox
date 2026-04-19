@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { availableMachineModels, availableStartersModels, createTasksFromModel } from "../data/maintenancePlanLibrary";
+import { getAvailableMachineModels, getAvailableStarterModels, createTasksFromModel } from "../data/maintenancePlanLibrary";
 import { type MaintenanceTask, type NewMachinePayload, type Vessel } from "../types/maintenance";
 
 type Props = {
@@ -11,9 +11,9 @@ export function MachineForm({ vessels, onSubmit }: Props) {
   const [vesselId, setVesselId] = useState(vessels[0]?.id || "");
   const [location, setLocation] = useState("");
   const [tag, setTag] = useState("");
-  const [model, setModel] = useState<string>(availableMachineModels[0] || "");
+  const [model, setModel] = useState<string>(getAvailableMachineModels()[0] || "");
   const [serialNumber, setSerialNumber] = useState("");
-  const [starterType, setStarterType] = useState<string>(availableStartersModels[0] || "");
+  const [starterType, setStarterType] = useState<string>(getAvailableStarterModels()[0] || "");
   const [type, setType] = useState("Chiller");
 
   const hasVessels = useMemo(() => vessels.length > 0, [vessels.length]);
@@ -52,7 +52,7 @@ export function MachineForm({ vessels, onSubmit }: Props) {
           onChange={(e) => setModel(e.target.value)}
           className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
         >
-          {availableMachineModels.map((machineModel) => (
+          {getAvailableMachineModels().map((machineModel) => (
             <option key={machineModel} value={machineModel}>
               {machineModel}
             </option>
@@ -66,7 +66,7 @@ export function MachineForm({ vessels, onSubmit }: Props) {
           onChange={(e) => setStarterType(e.target.value)}
           className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
         >
-          {availableStartersModels.map((starterModel) => (
+          {getAvailableStarterModels().map((starterModel) => (
             <option key={starterModel} value={starterModel}>
               {starterModel}
             </option>
@@ -109,8 +109,8 @@ export function MachineForm({ vessels, onSubmit }: Props) {
           setTag("");
           setSerialNumber("");
           setType("Chiller");
-          setModel(availableMachineModels[0] || "");
-          setStarterType(availableStartersModels[0] || "");
+          setModel(getAvailableMachineModels()[0] || "");
+          setStarterType(getAvailableStarterModels()[0] || "");
         }}
         className="w-full rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
       >

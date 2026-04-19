@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { loadFleet, resetFleet, saveFleet } from "./storage/maintenanceStorage";
+import { downloadFleetRegistry } from "./api/fleetRegistryApi";
+import { mergeFleetRegistry } from "./utils/mergeFleetRegistry";
 import {
   type FleetData,
   type MachineMeta,
@@ -29,8 +31,12 @@ import { MachineViewPage } from "./pages/MachineViewPage";
 import { compressImageFile } from "./utils/imageCompression";
 import { savePhotoBlob, getPhotoBlob, deletePhotoBlob } from "./storage/photoDb";
 import { SyncPage, type SyncProgressInfo } from "./pages/SyncPage";
-
-const API_BASE_URL = "https://hvac-toolbox-backend.onrender.com";
+import { API_BASE_URL } from "./api/config";
+import { getMaintenanceTemplateLibrary } from "./api/maintenanceTemplateApi";
+import {
+  saveMaintenanceTemplateLibrary,
+  type StoredMaintenanceTemplateLibrary,
+} from "./storage/maintenanceTemplateStorage";
 
 function MachineDetailRoute({
   fleet,
@@ -163,6 +169,12 @@ export default function App() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [addVesselOpen, setAddVesselOpen] = useState(false);
   const [addMachineOpen, setAddMachineOpen] = useState(false);
+  const [fleetSyncLoading, setFleetSyncLoading] = useState(false);
+  const [fleetSyncError, setFleetSyncError] = useState("");
+  const [fleetSyncSuccessMessage, setFleetSyncSuccessMessage] = useState("");
+  const [templateSyncLoading, setTemplateSyncLoading] = useState(false);
+  const [templateSyncError, setTemplateSyncError] = useState("");
+  const [templateSyncSuccessMessage, setTemplateSyncSuccessMessage] = useState("");
 
   useEffect(() => {
     saveFleet(fleet);
@@ -1285,6 +1297,118 @@ export default function App() {
     }
   };
 
+  const syncFleetRegistry = async () => {
+    try {
+      setFleetSyncLoading(true);
+      setFleetSyncError("");
+      setFleetSyncSuccessMessage("");
+
+      const remoteVessels = await downloadFleetRegistry();
+
+      setFleet((current) => {
+        const merged = mergeFleetRegistry(current, remoteVessels);
+        saveFleet(merged);
+        return merged;
+      });
+
+      setFleetSyncSuccessMessage("Fleet registry synced successfully.");
+    } catch (error) {
+      console.error(error);
+      setFleetSyncError("Failed to sync fleet registry.");
+      throw error;
+    } finally {
+      setFleetSyncLoading(false);
+    }
+  };
+
+  const syncMaintenanceTemplateLibrary = async () => {
+    try {
+      setTemplateSyncLoading(true);
+      setTemplateSyncError("");
+      setTemplateSyncSuccessMessage("");
+
+      const response = await getMaintenanceTemplateLibrary();
+
+      const library: StoredMaintenanceTemplateLibrary = {
+        templates: response.templates.map((template) => ({
+          code: template.code,
+          name: template.name,
+          templateType: template.templateType,
+          versionId: template.versionId,
+          versionNumber: template.versionNumber,
+          tasks: template.tasks.map((task) => ({
+            id: task.id,
+            category: task.category,
+            task: task.task,
+            tool: task.tool || "",
+            unit: task.unit,
+            required: task.required ?? true,
+            measurable: task.measurable ?? false,
+            photoRequiredOnFault: task.photoRequiredOnFault ?? true,
+            photoRequiredOnAttention: task.photoRequiredOnAttention ?? true,
+          })),
+        })),
+        syncedAt: new Date().toISOString(),
+      };
+
+      saveMaintenanceTemplateLibrary(library);
+      setTemplateSyncSuccessMessage("Maintenance template library synced successfully.");
+    } catch (error) {
+      console.error(error);
+      setTemplateSyncError("Failed to sync maintenance template library.");
+      throw error;
+    } finally {
+      setTemplateSyncLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const shouldAutoSync =
+      fleet.vessels.length === 0 &&
+      fleet.reports.length === 0 &&
+      fleet.correctiveDrafts.length === 0;
+
+    if (!shouldAutoSync) return;
+
+    const run = async () => {
+      try {
+        await syncFleetRegistry();
+      } catch (error) {
+        console.error("Auto fleet sync failed.", error);
+      }
+    };
+
+    run();
+  }, []);
+
+  const syncOfflineRegistry = async () => {
+    setTemplateSyncError("");
+    setTemplateSyncSuccessMessage("");
+    setFleetSyncError("");
+    setFleetSyncSuccessMessage("");
+
+    let hasError = false;
+
+    try {
+      await syncMaintenanceTemplateLibrary();
+    } catch (error) {
+      console.error("Template sync failed:", error);
+      hasError = true;
+    }
+
+    try {
+      await syncFleetRegistry();
+    } catch (error) {
+      console.error("Fleet sync failed:", error);
+      hasError = true;
+    }
+
+    if (hasError) {
+      throw new Error("One or more offline sync steps failed.");
+    }
+  };
+
+
   return (
     <AppShell
       vessels={fleet.vessels}
@@ -1343,6 +1467,13 @@ export default function App() {
               onSyncCorrectiveDraft={syncCorrectiveDraft}
               onDeleteReport={deletePreventiveReport}
               onDeleteCorrectiveDraft={deleteCorrectiveDraft}
+              onSyncOfflineRegistry={syncOfflineRegistry}
+              fleetSyncLoading={fleetSyncLoading}
+              fleetSyncError={fleetSyncError}
+              fleetSyncSuccessMessage={fleetSyncSuccessMessage}
+              templateSyncLoading={templateSyncLoading}
+              templateSyncError={templateSyncError}
+              templateSyncSuccessMessage={templateSyncSuccessMessage}
             />
           }
         />

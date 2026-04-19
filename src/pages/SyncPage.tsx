@@ -21,6 +21,13 @@ type Props = {
   ) => Promise<void>;
   onDeleteReport: (reportId: string) => void;
   onDeleteCorrectiveDraft: (draftId: string) => void;
+  onSyncOfflineRegistry: () => Promise<void>;
+  fleetSyncLoading: boolean;
+  fleetSyncError: string;
+  fleetSyncSuccessMessage: string;
+  templateSyncLoading: boolean;
+  templateSyncError: string;
+  templateSyncSuccessMessage: string;
 };
 
 export function SyncPage({
@@ -31,6 +38,14 @@ export function SyncPage({
   onSyncCorrectiveDraft,
   onDeleteReport,
   onDeleteCorrectiveDraft,
+  onSyncOfflineRegistry,
+  fleetSyncLoading,
+  fleetSyncError,
+  fleetSyncSuccessMessage,
+  templateSyncLoading,
+  templateSyncError,
+  templateSyncSuccessMessage,
+
 }: Props) {
   const { needRefresh, updateApp } = usePwaUpdater();
 
@@ -158,27 +173,64 @@ export function SyncPage({
           <button
             type="button"
             onClick={handleUpdateApp}
-            disabled={updateLoading || syncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${
-              updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
-            }`}
+            disabled={updateLoading || syncLoading || fleetSyncLoading}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${updateLoading || syncLoading || fleetSyncLoading ? "bg-slate-300" : "bg-slate-900"
+              }`}
           >
             Update application
+          </button>
+
+          <button type="button"
+            onClick={onSyncOfflineRegistry}
+            disabled={updateLoading || syncLoading || fleetSyncLoading || templateSyncLoading}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${!updateLoading &&
+              !syncLoading &&
+              !fleetSyncLoading &&
+              !templateSyncLoading
+              ? "bg-slate-900"
+              : "bg-slate-300"
+              }`}
+          >
+            {fleetSyncLoading || templateSyncLoading
+              ? "Syncing offline data..."
+              : "Sync offline data"}
           </button>
 
           <button
             type="button"
             onClick={handleSyncAll}
-            disabled={totalPending === 0 || updateLoading || syncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${
-              totalPending > 0 && !updateLoading && !syncLoading
-                ? "bg-slate-900"
-                : "bg-slate-300"
-            }`}
+            disabled={totalPending === 0 || updateLoading || syncLoading || fleetSyncLoading}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${totalPending > 0 && !updateLoading && !syncLoading && !fleetSyncLoading
+              ? "bg-slate-900"
+              : "bg-slate-300"
+              }`}
           >
             Sync all pending items ({totalPending})
           </button>
         </div>
+        {templateSyncSuccessMessage ? (
+          <div className="mt-4 rounded-2xl bg-green-100 p-4 text-sm text-green-800">
+            {templateSyncSuccessMessage}
+          </div>
+        ) : null}
+
+        {templateSyncError ? (
+          <div className="mt-4 rounded-2xl bg-red-100 p-4 text-sm text-red-800">
+            {templateSyncError}
+          </div>
+        ) : null}
+
+        {fleetSyncSuccessMessage ? (
+          <div className="mt-4 rounded-2xl bg-green-100 p-4 text-sm text-green-800">
+            {fleetSyncSuccessMessage}
+          </div>
+        ) : null}
+
+        {fleetSyncError ? (
+          <div className="mt-4 rounded-2xl bg-red-100 p-4 text-sm text-red-800">
+            {fleetSyncError}
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -218,9 +270,8 @@ export function SyncPage({
                       type="button"
                       onClick={() => handleSyncReport(report.id, report.machineTag)}
                       disabled={updateLoading || syncLoading}
-                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
-                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
-                      }`}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                        }`}
                     >
                       Sync
                     </button>
@@ -285,9 +336,8 @@ export function SyncPage({
                       type="button"
                       onClick={() => handleSyncCorrectiveDraft(draft.id, draft.machineTag)}
                       disabled={updateLoading || syncLoading}
-                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
-                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
-                      }`}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                        }`}
                     >
                       Sync
                     </button>
