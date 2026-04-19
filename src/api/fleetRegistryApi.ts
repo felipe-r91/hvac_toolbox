@@ -45,6 +45,7 @@ type BackendMachinePlanResponse = {
 
 export async function getFleetVessels(): Promise<BackendVessel[]> {
   const response = await fetch(`${API_BASE_URL}/api/fleet/vessels`);
+  console.log("Fleet vessels response:", response);
 
   if (!response.ok) {
     const text = await response.text();
