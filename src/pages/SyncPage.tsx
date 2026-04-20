@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type CorrectiveDraft, type MaintenanceReport } from "../types/maintenance";
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
 import { TbCloudDown, TbCloudUp, TbDeviceMobileDown } from "react-icons/tb";
@@ -59,6 +59,9 @@ export function SyncPage({
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncLabel, setSyncLabel] = useState("");
+
+  const [visibleTemplateSuccessMessage, setVisibleTemplateSuccessMessage] = useState("");
+  const [visibleFleetSuccessMessage, setVisibleFleetSuccessMessage] = useState("");
 
   const pendingReports = reports.filter((report) => !report.synced);
   const pendingCorrectiveDrafts = correctiveDrafts.filter((draft) => !draft.synced);
@@ -132,6 +135,36 @@ export function SyncPage({
     return new Date(value).toLocaleString();
   }
 
+  useEffect(() => {
+    if (!templateSyncSuccessMessage) {
+      setVisibleTemplateSuccessMessage("");
+      return;
+    }
+
+    setVisibleTemplateSuccessMessage(templateSyncSuccessMessage);
+
+    const timer = window.setTimeout(() => {
+      setVisibleTemplateSuccessMessage("");
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [templateSyncSuccessMessage]);
+
+  useEffect(() => {
+    if (!fleetSyncSuccessMessage) {
+      setVisibleFleetSuccessMessage("");
+      return;
+    }
+
+    setVisibleFleetSuccessMessage(fleetSyncSuccessMessage);
+
+    const timer = window.setTimeout(() => {
+      setVisibleFleetSuccessMessage("");
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [fleetSyncSuccessMessage]);
+
   return (
     <section className="space-y-4">
       {updateLoading ? (
@@ -169,13 +202,13 @@ export function SyncPage({
       ) : null}
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        
+
         <div className="w-full flex gap-3 justify-between items-center">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Application</h2>
-      <p className="mt-1 text-sm text-slate-500">Version {__APP_VERSION__}</p>
+            <p className="mt-1 text-sm text-slate-500">Version {__APP_VERSION__}</p>
           </div>
-          
+
           <button
             type="button"
             onClick={handleUpdateApp}
@@ -185,7 +218,7 @@ export function SyncPage({
             <TbDeviceMobileDown size={30} />
           </button>
         </div>
-        
+
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -214,7 +247,7 @@ export function SyncPage({
         ) : null}
 
         <div className="mt-4 flex gap-3 flex-col sm:flex-row">
-          
+
 
           <button type="button"
             onClick={onSyncOfflineRegistry}
@@ -246,9 +279,9 @@ export function SyncPage({
             Upload all pending items ({totalPending})
           </button>
         </div>
-        {templateSyncSuccessMessage ? (
+        {visibleTemplateSuccessMessage ? (
           <div className="mt-4 rounded-2xl bg-green-100 p-4 text-sm text-green-800">
-            {templateSyncSuccessMessage}
+            {visibleTemplateSuccessMessage}
           </div>
         ) : null}
 
@@ -258,9 +291,9 @@ export function SyncPage({
           </div>
         ) : null}
 
-        {fleetSyncSuccessMessage ? (
+        {visibleFleetSuccessMessage ? (
           <div className="mt-4 rounded-2xl bg-green-100 p-4 text-sm text-green-800">
-            {fleetSyncSuccessMessage}
+            {visibleFleetSuccessMessage}
           </div>
         ) : null}
 
