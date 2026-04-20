@@ -1321,6 +1321,7 @@ export default function App() {
     setFleetSyncSuccessMessage("");
 
     const remoteVessels = await downloadFleetRegistry();
+    console.log("remoteVessels", remoteVessels);
     const syncedAt = new Date().toISOString();
 
     setFleet((current) => {
