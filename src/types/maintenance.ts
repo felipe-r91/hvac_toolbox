@@ -52,6 +52,8 @@ export type FailureMode =
   | "other";
 
 
+export type ReportCategory = "health_check" | "corrective" | "cfr";
+
 export type MachineMeta = {
   id: string;
   location: string;
@@ -124,6 +126,7 @@ export type MaintenanceReport = {
   completedAt: string;
   machineStarterType: string;
   overallStatus: "online" | "down";
+  reportCategory: ReportCategory;
   downtimeReason?: string;
   failureComponent?: FailureComponent;
   failureMode?: FailureMode;
@@ -201,6 +204,7 @@ export type CorrectiveDraft = {
   furtherActionRequired: string;
 
   machineReturnedToService: "yes" | "no" | "unknown";
+  reportCategory: "corrective" | "cfr";
 
   photos: CorrectivePhoto[];
   synced?: boolean;
@@ -264,5 +268,5 @@ export type FailureCode =
   export type FinishMaintenanceResult = {
   reportId: string;
   linkedCorrectiveDraftId?: string;
-  redirectedTo: "preventive" | "corrective";
+  redirectedTo: "health_check" | "corrective";
 };

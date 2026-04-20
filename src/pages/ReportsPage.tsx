@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import {
   type CorrectiveDraft,
   type MaintenanceReport,
+  type ReportCategory,
   type Vessel,
 } from "../types/maintenance";
 import { LuFileText } from "react-icons/lu";
@@ -18,23 +19,51 @@ function statusBadge(status: "online" | "down") {
     : "bg-red-100 text-red-800 ring-red-200";
 }
 
+function reportCategoryBadge(category: ReportCategory) {
+  switch (category) {
+    case "health_check":
+      return "bg-blue-100 text-blue-800";
+    case "corrective":
+      return "bg-yellow-100 text-yellow-800";
+    case "cfr":
+      return "bg-purple-100 text-purple-800";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function reportCategoryLabel(category: ReportCategory) {
+  switch (category) {
+    case "health_check":
+      return "Health Check";
+    case "corrective":
+      return "Corrective";
+    case "cfr":
+      return "CFR";
+    default:
+      return category;
+  }
+}
+
 type MachineHistoryItem =
   | {
-    id: string;
-    kind: "preventive";
-    date: string;
-    status: "online" | "down";
-    label: string;
-    preventiveReport: MaintenanceReport;
-  }
+      id: string;
+      source: "maintenance_report";
+      reportCategory: "health_check";
+      date: string;
+      status: "online" | "down";
+      label: string;
+      preventiveReport: MaintenanceReport;
+    }
   | {
-    id: string;
-    kind: "corrective";
-    date: string;
-    status: "online" | "down";
-    label: string;
-    correctiveDraft: CorrectiveDraft;
-  };
+      id: string;
+      source: "corrective_draft";
+      reportCategory: "corrective" | "cfr";
+      date: string;
+      status: "online" | "down";
+      label: string;
+      correctiveDraft: CorrectiveDraft;
+    };
 
 export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
   return (
@@ -90,7 +119,8 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                     .map(
                       (report): MachineHistoryItem => ({
                         id: report.id,
-                        kind: "preventive",
+                        source: "maintenance_report",
+                        reportCategory: "health_check",
                         date: report.completedAt,
                         status: report.overallStatus,
                         label: new Date(report.completedAt).toLocaleString(),
@@ -103,7 +133,8 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                     .map(
                       (draft): MachineHistoryItem => ({
                         id: draft.id,
-                        kind: "corrective",
+                        source: "corrective_draft",
+                        reportCategory: draft.reportCategory,
                         date: draft.createdAt,
                         status:
                           draft.machineReturnedToService === "yes" ? "online" : "down",
@@ -143,10 +174,11 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                           </div>
 
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${latestItem
+                            className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${
+                              latestItem
                                 ? statusBadge(latestItem.status)
                                 : "bg-slate-100 text-slate-600 ring-slate-200"
-                              }`}
+                            }`}
                           >
                             {latestItem ? latestItem.status : "no report"}
                           </span>
@@ -156,7 +188,7 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                       <div className="mt-4 space-y-2">
                         {machineHistory.length > 0 ? (
                           machineHistory.map((item) => {
-                            if (item.kind === "preventive") {
+                            if (item.source === "maintenance_report") {
                               return (
                                 <Link
                                   key={item.id}
@@ -165,8 +197,12 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                                 >
                                   <div className="flex items-center justify-between gap-3">
                                     <span>{item.label}</span>
-                                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
-                                      Preventive
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${reportCategoryBadge(
+                                        item.reportCategory
+                                      )}`}
+                                    >
+                                      {reportCategoryLabel(item.reportCategory)}
                                     </span>
                                   </div>
                                 </Link>
@@ -183,12 +219,19 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                                   <div>
                                     <div>{item.label}</div>
                                     <div className="mt-1 text-xs text-slate-500">
-                                      {item.correctiveDraft.problemSummary || "Corrective maintenance draft"}
+                                      {item.correctiveDraft.problemSummary ||
+                                        (item.reportCategory === "cfr"
+                                          ? "Conditions found report"
+                                          : "Corrective report")}
                                     </div>
                                   </div>
 
-                                  <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800">
-                                    Corrective
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${reportCategoryBadge(
+                                      item.reportCategory
+                                    )}`}
+                                  >
+                                    {reportCategoryLabel(item.reportCategory)}
                                   </span>
                                 </div>
                               </Link>

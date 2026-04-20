@@ -15,13 +15,27 @@ function formatFailureCode(code?: string) {
     .join(" ");
 }
 
+function getReportCategoryTitle(category: CorrectiveDraft["reportCategory"]) {
+  return category === "cfr" ? "Conditions Found Report" : "Corrective Report";
+}
+
+function getReportCategoryBadge(category: CorrectiveDraft["reportCategory"]) {
+  return category === "cfr"
+    ? "bg-purple-100 text-purple-800"
+    : "bg-yellow-100 text-yellow-800";
+}
+
+function getReportCategoryLabel(category: CorrectiveDraft["reportCategory"]) {
+  return category === "cfr" ? "CFR" : "Corrective";
+}
+
 export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
   const { draftId } = useParams();
 
   const draft = correctiveDrafts.find((item) => item.id === draftId);
 
   if (!draft) {
-    return <div className="p-6">Corrective report not found.</div>;
+    return <div className="p-6">Report report not found.</div>;
   }
 
   return (
@@ -30,12 +44,24 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
         <BackButton />
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Corrective Report
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {new Date(draft.createdAt).toLocaleString()}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900">
+                {getReportCategoryTitle(draft.reportCategory)}
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                {new Date(draft.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${getReportCategoryBadge(
+                draft.reportCategory
+              )}`}
+            >
+              {getReportCategoryLabel(draft.reportCategory)}
+            </span>
+          </div>
         </section>
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">

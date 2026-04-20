@@ -33,6 +33,16 @@ type Props = {
   maintenanceTemplateSyncedAt?: string;
 };
 
+function getDraftCategoryLabel(category: CorrectiveDraft["reportCategory"]) {
+  return category === "cfr" ? "CFR" : "Corrective";
+}
+
+function getDraftCategoryBadge(category: CorrectiveDraft["reportCategory"]) {
+  return category === "cfr"
+    ? "bg-purple-100 text-purple-800"
+    : "bg-yellow-100 text-yellow-800";
+}
+
 export function SyncPage({
   reports,
   correctiveDrafts,
@@ -50,7 +60,6 @@ export function SyncPage({
   templateSyncSuccessMessage,
   fleetRegistrySyncedAt,
   maintenanceTemplateSyncedAt,
-
 }: Props) {
   const { needRefresh, updateApp } = usePwaUpdater();
 
@@ -99,7 +108,7 @@ export function SyncPage({
   const handleSyncReport = async (reportId: string, machineTag: string) => {
     setSyncLoading(true);
     setSyncProgress(0);
-    setSyncLabel(`Preparing preventive report for ${machineTag}...`);
+    setSyncLabel(`Preparing health check for ${machineTag}...`);
 
     try {
       await onSyncReport(reportId, ({ percent, label }) => {
@@ -116,7 +125,7 @@ export function SyncPage({
   const handleSyncCorrectiveDraft = async (draftId: string, machineTag: string) => {
     setSyncLoading(true);
     setSyncProgress(0);
-    setSyncLabel(`Preparing corrective draft for ${machineTag}...`);
+    setSyncLabel(`Preparing report for ${machineTag}...`);
 
     try {
       await onSyncCorrectiveDraft(draftId, ({ percent, label }) => {
@@ -202,7 +211,6 @@ export function SyncPage({
       ) : null}
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-
         <div className="w-full flex gap-3 justify-between items-center">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Application</h2>
@@ -213,12 +221,11 @@ export function SyncPage({
             type="button"
             onClick={handleUpdateApp}
             disabled={updateLoading || syncLoading || fleetSyncLoading}
-            className="flex justify-center items-center gap-4  rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
+            className="flex justify-center items-center gap-4 rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
           >
             <TbDeviceMobileDown size={30} />
           </button>
         </div>
-
 
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
@@ -247,18 +254,18 @@ export function SyncPage({
         ) : null}
 
         <div className="mt-4 flex gap-3 flex-col sm:flex-row">
-
-
-          <button type="button"
+          <button
+            type="button"
             onClick={onSyncOfflineRegistry}
             disabled={updateLoading || syncLoading || fleetSyncLoading || templateSyncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white flex gap-3 items-center ${!updateLoading &&
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white flex gap-3 items-center ${
+              !updateLoading &&
               !syncLoading &&
               !fleetSyncLoading &&
               !templateSyncLoading
-              ? "bg-slate-900"
-              : "bg-slate-300"
-              }`}
+                ? "bg-slate-900"
+                : "bg-slate-300"
+            }`}
           >
             <TbCloudDown size={24} />
             {fleetSyncLoading || templateSyncLoading
@@ -270,15 +277,17 @@ export function SyncPage({
             type="button"
             onClick={handleSyncAll}
             disabled={totalPending === 0 || updateLoading || syncLoading || fleetSyncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white flex gap-3 items-center ${totalPending > 0 && !updateLoading && !syncLoading && !fleetSyncLoading
-              ? "bg-slate-900"
-              : "bg-slate-300"
-              }`}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white flex gap-3 items-center ${
+              totalPending > 0 && !updateLoading && !syncLoading && !fleetSyncLoading
+                ? "bg-slate-900"
+                : "bg-slate-300"
+            }`}
           >
             <TbCloudUp size={24} />
             Upload all pending items ({totalPending})
           </button>
         </div>
+
         {visibleTemplateSuccessMessage ? (
           <div className="mt-4 rounded-2xl bg-green-100 p-4 text-sm text-green-800">
             {visibleTemplateSuccessMessage}
@@ -306,7 +315,7 @@ export function SyncPage({
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">
-          Preventive reports pending upload
+          Health checks pending upload
         </h2>
 
         <div className="mt-4 space-y-3">
@@ -323,7 +332,7 @@ export function SyncPage({
                         {report.machineTag}
                       </h3>
                       <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
-                        Preventive
+                        Health Check
                       </span>
                     </div>
 
@@ -341,8 +350,9 @@ export function SyncPage({
                       type="button"
                       onClick={() => handleSyncReport(report.id, report.machineTag)}
                       disabled={updateLoading || syncLoading}
-                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
-                        }`}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
+                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                      }`}
                     >
                       Upload
                     </button>
@@ -350,7 +360,7 @@ export function SyncPage({
                     <button
                       type="button"
                       onClick={() => {
-                        const confirmed = window.confirm("Delete this preventive report?");
+                        const confirmed = window.confirm("Delete this health check?");
                         if (confirmed) onDeleteReport(report.id);
                       }}
                       disabled={updateLoading || syncLoading}
@@ -364,7 +374,7 @@ export function SyncPage({
             ))
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
-              No preventive reports pending upload.
+              No health checks pending upload.
             </div>
           )}
         </div>
@@ -372,7 +382,7 @@ export function SyncPage({
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">
-          Corrective drafts pending upload
+          Corrective and CFR reports pending upload
         </h2>
 
         <div className="mt-4 space-y-3">
@@ -388,8 +398,12 @@ export function SyncPage({
                       <h3 className="text-sm font-semibold text-slate-900">
                         {draft.machineTag}
                       </h3>
-                      <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800">
-                        Corrective
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                          getDraftCategoryBadge(draft.reportCategory)
+                        }`}
+                      >
+                        {getDraftCategoryLabel(draft.reportCategory)}
                       </span>
                     </div>
 
@@ -407,8 +421,9 @@ export function SyncPage({
                       type="button"
                       onClick={() => handleSyncCorrectiveDraft(draft.id, draft.machineTag)}
                       disabled={updateLoading || syncLoading}
-                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
-                        }`}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
+                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                      }`}
                     >
                       Upload
                     </button>
@@ -416,7 +431,9 @@ export function SyncPage({
                     <button
                       type="button"
                       onClick={() => {
-                        const confirmed = window.confirm("Delete this corrective draft?");
+                        const confirmed = window.confirm(
+                          `Delete this ${getDraftCategoryLabel(draft.reportCategory).toLowerCase()} report?`
+                        );
                         if (confirmed) onDeleteCorrectiveDraft(draft.id);
                       }}
                       disabled={updateLoading || syncLoading}
@@ -430,7 +447,7 @@ export function SyncPage({
             ))
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
-              No corrective drafts pending upload.
+              No corrective or CFR reports pending upload.
             </div>
           )}
         </div>

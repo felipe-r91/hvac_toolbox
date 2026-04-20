@@ -102,6 +102,8 @@ export function CorrectiveMaintenancePage({
       failureMode: undefined,
       failureCode: undefined,
 
+      reportCategory: "cfr",
+
       problemSummary: "",
       conditionFound: "",
       symptomsObserved: "",

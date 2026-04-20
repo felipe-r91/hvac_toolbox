@@ -548,6 +548,7 @@ export default function App() {
       machineStarterType: plan.machine.starterType,
       completedAt,
       overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
+      reportCategory: "health_check",
       downtimeReason: plan.machine.downtimeReason || "",
       failureComponent: plan.machine.failureComponent,
       failureMode: plan.machine.failureMode,
@@ -573,6 +574,8 @@ export default function App() {
         machineStarterType: plan.machine.starterType,
         machineLocation: plan.machine.location,
         createdAt: completedAt,
+
+        reportCategory: "corrective",
 
         failureComponent: plan.machine.failureComponent,
         failureMode: plan.machine.failureMode,
@@ -678,7 +681,7 @@ export default function App() {
     return {
       reportId,
       linkedCorrectiveDraftId: correctiveDraftId,
-      redirectedTo: shouldCreateCorrective ? "corrective" : "preventive",
+      redirectedTo: shouldCreateCorrective ? "corrective" : "health_check",
     };
   };
 
