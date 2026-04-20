@@ -41,6 +41,7 @@ import {
   loadOfflineSyncMetadata,
   updateOfflineSyncMetadata,
 } from "./storage/offlineSyncStorage";
+import { resolvePhotoUrl } from "./utils/photoUrl";
 
 function MachineDetailRoute({
   fleet,
@@ -84,7 +85,7 @@ function MachineDetailRoute({
     fleet.photos
       .filter((photo) => photo.machineId === currentMachineId && photo.kind === "machine")
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((photo) => photo.previewUrl)
+      .map((photo) => resolvePhotoUrl(photo))
       .filter((url): url is string => Boolean(url));
 
   const getTaskPhotoUrls = (currentTaskId: string) =>
@@ -96,7 +97,7 @@ function MachineDetailRoute({
           photo.kind === "task"
       )
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((photo) => photo.previewUrl)
+      .map((photo) => resolvePhotoUrl(photo))
       .filter((url): url is string => Boolean(url));
 
   return (
@@ -1352,7 +1353,6 @@ export default function App() {
       setFleetSyncSuccessMessage("");
 
       const remoteVessels = await downloadFleetRegistry();
-      console.log("remoteVessels", remoteVessels);
       const syncedAt = new Date().toISOString();
 
       setFleet((current) => {
