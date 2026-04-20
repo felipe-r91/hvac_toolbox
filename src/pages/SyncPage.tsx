@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { type CorrectiveDraft, type MaintenanceReport } from "../types/maintenance";
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
+import { TbCloudDown, TbCloudUp, TbDeviceMobileDown } from "react-icons/tb";
 
 export type SyncProgressInfo = {
   percent: number;
@@ -28,6 +29,8 @@ type Props = {
   templateSyncLoading: boolean;
   templateSyncError: string;
   templateSyncSuccessMessage: string;
+  fleetRegistrySyncedAt?: string;
+  maintenanceTemplateSyncedAt?: string;
 };
 
 export function SyncPage({
@@ -45,6 +48,8 @@ export function SyncPage({
   templateSyncLoading,
   templateSyncError,
   templateSyncSuccessMessage,
+  fleetRegistrySyncedAt,
+  maintenanceTemplateSyncedAt,
 
 }: Props) {
   const { needRefresh, updateApp } = usePwaUpdater();
@@ -122,6 +127,11 @@ export function SyncPage({
     }
   };
 
+  function formatSyncTime(value?: string) {
+    if (!value) return "Never";
+    return new Date(value).toLocaleString();
+  }
+
   return (
     <section className="space-y-4">
       {updateLoading ? (
@@ -159,9 +169,43 @@ export function SyncPage({
       ) : null}
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-        <h2 className="text-lg font-semibold text-slate-900">Application</h2>
+        
+        <div className="w-full flex gap-3 justify-between items-center">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Application</h2>
+      <p className="mt-1 text-sm text-slate-500">Version {__APP_VERSION__}</p>
+          </div>
+          
+          <button
+            type="button"
+            onClick={handleUpdateApp}
+            disabled={updateLoading || syncLoading || fleetSyncLoading}
+            className="flex justify-center items-center gap-4  rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
+          >
+            <TbDeviceMobileDown size={30} />
+          </button>
+        </div>
+        
 
-        <p className="mt-1 text-sm text-slate-500">Version {__APP_VERSION__}</p>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+            <div className="text-xs font-medium text-slate-500">
+              Last fleet registry sync
+            </div>
+            <div className="mt-1 text-sm text-slate-900">
+              {formatSyncTime(fleetRegistrySyncedAt)}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+            <div className="text-xs font-medium text-slate-500">
+              Last maintenance template sync
+            </div>
+            <div className="mt-1 text-sm text-slate-900">
+              {formatSyncTime(maintenanceTemplateSyncedAt)}
+            </div>
+          </div>
+        </div>
 
         {needRefresh ? (
           <div className="mt-4 rounded-2xl bg-yellow-100 p-4 text-sm text-yellow-900">
@@ -169,21 +213,13 @@ export function SyncPage({
           </div>
         ) : null}
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={handleUpdateApp}
-            disabled={updateLoading || syncLoading || fleetSyncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${updateLoading || syncLoading || fleetSyncLoading ? "bg-slate-300" : "bg-slate-900"
-              }`}
-          >
-            Update application
-          </button>
+        <div className="mt-4 flex gap-3 flex-col sm:flex-row">
+          
 
           <button type="button"
             onClick={onSyncOfflineRegistry}
             disabled={updateLoading || syncLoading || fleetSyncLoading || templateSyncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${!updateLoading &&
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white flex gap-3 items-center ${!updateLoading &&
               !syncLoading &&
               !fleetSyncLoading &&
               !templateSyncLoading
@@ -191,6 +227,7 @@ export function SyncPage({
               : "bg-slate-300"
               }`}
           >
+            <TbCloudDown size={24} />
             {fleetSyncLoading || templateSyncLoading
               ? "Syncing offline data..."
               : "Sync offline data"}
@@ -200,12 +237,13 @@ export function SyncPage({
             type="button"
             onClick={handleSyncAll}
             disabled={totalPending === 0 || updateLoading || syncLoading || fleetSyncLoading}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white ${totalPending > 0 && !updateLoading && !syncLoading && !fleetSyncLoading
+            className={`rounded-2xl px-4 py-3 text-sm font-medium text-white flex gap-3 items-center ${totalPending > 0 && !updateLoading && !syncLoading && !fleetSyncLoading
               ? "bg-slate-900"
               : "bg-slate-300"
               }`}
           >
-            Sync all pending items ({totalPending})
+            <TbCloudUp size={24} />
+            Upload all pending items ({totalPending})
           </button>
         </div>
         {templateSyncSuccessMessage ? (
@@ -235,7 +273,7 @@ export function SyncPage({
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">
-          Preventive reports pending sync
+          Preventive reports pending upload
         </h2>
 
         <div className="mt-4 space-y-3">
@@ -273,7 +311,7 @@ export function SyncPage({
                       className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
                         }`}
                     >
-                      Sync
+                      Upload
                     </button>
 
                     <button
@@ -293,7 +331,7 @@ export function SyncPage({
             ))
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
-              No preventive reports pending sync.
+              No preventive reports pending upload.
             </div>
           )}
         </div>
@@ -301,7 +339,7 @@ export function SyncPage({
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">
-          Corrective drafts pending sync
+          Corrective drafts pending upload
         </h2>
 
         <div className="mt-4 space-y-3">
@@ -339,7 +377,7 @@ export function SyncPage({
                       className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
                         }`}
                     >
-                      Sync
+                      Upload
                     </button>
 
                     <button
@@ -359,7 +397,7 @@ export function SyncPage({
             ))
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
-              No corrective drafts pending sync.
+              No corrective drafts pending upload.
             </div>
           )}
         </div>

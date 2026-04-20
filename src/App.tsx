@@ -37,6 +37,10 @@ import {
   saveMaintenanceTemplateLibrary,
   type StoredMaintenanceTemplateLibrary,
 } from "./storage/maintenanceTemplateStorage";
+import {
+  loadOfflineSyncMetadata,
+  updateOfflineSyncMetadata,
+} from "./storage/offlineSyncStorage";
 
 function MachineDetailRoute({
   fleet,
@@ -175,6 +179,7 @@ export default function App() {
   const [templateSyncLoading, setTemplateSyncLoading] = useState(false);
   const [templateSyncError, setTemplateSyncError] = useState("");
   const [templateSyncSuccessMessage, setTemplateSyncSuccessMessage] = useState("");
+  const [offlineSyncMetadata, setOfflineSyncMetadata] = useState(() => loadOfflineSyncMetadata());
 
   useEffect(() => {
     saveFleet(fleet);
@@ -231,6 +236,15 @@ export default function App() {
   };
 
   const addMachine = (payload: NewMachinePayload) => {
+    const tasks = createTasksFromModel(payload.model, payload.starterType);
+
+    if (tasks.length === 0) {
+      alert(
+        "Maintenance templates are not available offline yet.\n\nPlease sync the fleet data before creating a new machine."
+      );
+      return;
+    }
+
     setFleet((current) => ({
       ...current,
       vessels: current.vessels.map((vessel) => {
@@ -256,7 +270,7 @@ export default function App() {
                 failureMode: undefined,
                 failureNotes: "",
               },
-              tasks: createTasksFromModel(payload.model, payload.starterType),
+              tasks,
             },
           ],
         };
@@ -1298,69 +1312,84 @@ export default function App() {
   };
 
   const syncFleetRegistry = async () => {
-    try {
-      setFleetSyncLoading(true);
-      setFleetSyncError("");
-      setFleetSyncSuccessMessage("");
+  try {
+    setFleetSyncLoading(true);
+    setFleetSyncError("");
+    setFleetSyncSuccessMessage("");
 
-      const remoteVessels = await downloadFleetRegistry();
+    const remoteVessels = await downloadFleetRegistry();
+    const syncedAt = new Date().toISOString();
 
-      setFleet((current) => {
-        const merged = mergeFleetRegistry(current, remoteVessels);
-        saveFleet(merged);
-        return merged;
-      });
+    setFleet((current) => {
+      const merged = mergeFleetRegistry(current, remoteVessels);
+      saveFleet(merged);
+      return merged;
+    });
 
-      setFleetSyncSuccessMessage("Fleet registry synced successfully.");
-    } catch (error) {
-      console.error(error);
-      setFleetSyncError("Failed to sync fleet registry.");
-      throw error;
-    } finally {
-      setFleetSyncLoading(false);
-    }
-  };
+    updateOfflineSyncMetadata({ fleetRegistrySyncedAt: syncedAt });
+    setOfflineSyncMetadata((current) => ({
+      ...current,
+      fleetRegistrySyncedAt: syncedAt,
+    }));
+
+    setFleetSyncSuccessMessage("Fleet registry synced successfully.");
+  } catch (error) {
+    console.error(error);
+    setFleetSyncError("Failed to sync fleet registry.");
+    throw error;
+  } finally {
+    setFleetSyncLoading(false);
+  }
+};
 
   const syncMaintenanceTemplateLibrary = async () => {
-    try {
-      setTemplateSyncLoading(true);
-      setTemplateSyncError("");
-      setTemplateSyncSuccessMessage("");
+  try {
+    setTemplateSyncLoading(true);
+    setTemplateSyncError("");
+    setTemplateSyncSuccessMessage("");
 
-      const response = await getMaintenanceTemplateLibrary();
+    const response = await getMaintenanceTemplateLibrary();
+    const syncedAt = new Date().toISOString();
 
-      const library: StoredMaintenanceTemplateLibrary = {
-        templates: response.templates.map((template) => ({
-          code: template.code,
-          name: template.name,
-          templateType: template.templateType,
-          versionId: template.versionId,
-          versionNumber: template.versionNumber,
-          tasks: template.tasks.map((task) => ({
-            id: task.id,
-            category: task.category,
-            task: task.task,
-            tool: task.tool || "",
-            unit: task.unit,
-            required: task.required ?? true,
-            measurable: task.measurable ?? false,
-            photoRequiredOnFault: task.photoRequiredOnFault ?? true,
-            photoRequiredOnAttention: task.photoRequiredOnAttention ?? true,
-          })),
+    const library: StoredMaintenanceTemplateLibrary = {
+      templates: response.templates.map((template) => ({
+        code: template.code,
+        name: template.name,
+        templateType: template.templateType,
+        versionId: template.versionId,
+        versionNumber: template.versionNumber,
+        tasks: template.tasks.map((task) => ({
+          id: task.id,
+          category: task.category,
+          task: task.task,
+          tool: task.tool || "",
+          unit: task.unit,
+          required: task.required ?? true,
+          measurable: task.measurable ?? false,
+          photoRequiredOnFault: task.photoRequiredOnFault ?? true,
+          photoRequiredOnAttention: task.photoRequiredOnAttention ?? true,
         })),
-        syncedAt: new Date().toISOString(),
-      };
+      })),
+      syncedAt,
+    };
 
-      saveMaintenanceTemplateLibrary(library);
-      setTemplateSyncSuccessMessage("Maintenance template library synced successfully.");
-    } catch (error) {
-      console.error(error);
-      setTemplateSyncError("Failed to sync maintenance template library.");
-      throw error;
-    } finally {
-      setTemplateSyncLoading(false);
-    }
-  };
+    saveMaintenanceTemplateLibrary(library);
+
+    updateOfflineSyncMetadata({ maintenanceTemplateSyncedAt: syncedAt });
+    setOfflineSyncMetadata((current) => ({
+      ...current,
+      maintenanceTemplateSyncedAt: syncedAt,
+    }));
+
+    setTemplateSyncSuccessMessage("Maintenance template library synced successfully.");
+  } catch (error) {
+    console.error(error);
+    setTemplateSyncError("Failed to sync maintenance template library.");
+    throw error;
+  } finally {
+    setTemplateSyncLoading(false);
+  }
+};
 
   useEffect(() => {
     const shouldAutoSync =
@@ -1474,6 +1503,8 @@ export default function App() {
               templateSyncLoading={templateSyncLoading}
               templateSyncError={templateSyncError}
               templateSyncSuccessMessage={templateSyncSuccessMessage}
+              fleetRegistrySyncedAt={offlineSyncMetadata.fleetRegistrySyncedAt}
+              maintenanceTemplateSyncedAt={offlineSyncMetadata.maintenanceTemplateSyncedAt}
             />
           }
         />
