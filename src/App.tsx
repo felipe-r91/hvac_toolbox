@@ -685,6 +685,19 @@ export default function App() {
     };
   };
 
+  const buildOfflineTasksForMachine = (model: string, starterType: string) => {
+    const tasks = createTasksFromModel(model, starterType);
+
+    if (tasks.length === 0) {
+      alert(
+        "Maintenance templates are not available offline yet.\n\nPlease sync offline data before creating or changing this machine."
+      );
+      return null;
+    }
+
+    return tasks;
+  };
+
   const editMachine = (payload: {
     vesselId: string;
     machineId: string;
@@ -703,23 +716,41 @@ export default function App() {
 
         return {
           ...vessel,
-          machines: vessel.machines.map((plan) =>
-            plan.machine.id === payload.machineId
-              ? {
-                ...plan,
-                machine: {
-                  ...plan.machine,
-                  location: payload.location,
-                  tag: payload.tag,
-                  model: payload.model,
-                  serialNumber: payload.serialNumber,
-                  type: payload.type,
-                  starterType: payload.starterType,
-                },
-                tasks: payload.tasks,
+          machines: vessel.machines.map((plan) => {
+            if (plan.machine.id !== payload.machineId) return plan;
+
+            const modelChanged = plan.machine.model !== payload.model;
+            const starterChanged = plan.machine.starterType !== payload.starterType;
+
+            let nextTasks = plan.tasks;
+
+            if (modelChanged || starterChanged) {
+              const regeneratedTasks = buildOfflineTasksForMachine(
+                payload.model,
+                payload.starterType
+              );
+
+              if (!regeneratedTasks) {
+                return plan;
               }
-              : plan
-          ),
+
+              nextTasks = regeneratedTasks;
+            }
+
+            return {
+              ...plan,
+              machine: {
+                ...plan.machine,
+                location: payload.location,
+                tag: payload.tag,
+                model: payload.model,
+                serialNumber: payload.serialNumber,
+                type: payload.type,
+                starterType: payload.starterType,
+              },
+              tasks: nextTasks,
+            };
+          }),
         };
       }),
     }));
@@ -1315,85 +1346,85 @@ export default function App() {
   };
 
   const syncFleetRegistry = async () => {
-  try {
-    setFleetSyncLoading(true);
-    setFleetSyncError("");
-    setFleetSyncSuccessMessage("");
+    try {
+      setFleetSyncLoading(true);
+      setFleetSyncError("");
+      setFleetSyncSuccessMessage("");
 
-    const remoteVessels = await downloadFleetRegistry();
-    console.log("remoteVessels", remoteVessels);
-    const syncedAt = new Date().toISOString();
+      const remoteVessels = await downloadFleetRegistry();
+      console.log("remoteVessels", remoteVessels);
+      const syncedAt = new Date().toISOString();
 
-    setFleet((current) => {
-      const merged = mergeFleetRegistry(current, remoteVessels);
-      saveFleet(merged);
-      return merged;
-    });
+      setFleet((current) => {
+        const merged = mergeFleetRegistry(current, remoteVessels);
+        saveFleet(merged);
+        return merged;
+      });
 
-    updateOfflineSyncMetadata({ fleetRegistrySyncedAt: syncedAt });
-    setOfflineSyncMetadata((current) => ({
-      ...current,
-      fleetRegistrySyncedAt: syncedAt,
-    }));
+      updateOfflineSyncMetadata({ fleetRegistrySyncedAt: syncedAt });
+      setOfflineSyncMetadata((current) => ({
+        ...current,
+        fleetRegistrySyncedAt: syncedAt,
+      }));
 
-    setFleetSyncSuccessMessage("Fleet registry synced successfully.");
-  } catch (error) {
-    console.error(error);
-    setFleetSyncError("Failed to sync fleet registry.");
-    throw error;
-  } finally {
-    setFleetSyncLoading(false);
-  }
-};
+      setFleetSyncSuccessMessage("Fleet registry synced successfully.");
+    } catch (error) {
+      console.error(error);
+      setFleetSyncError("Failed to sync fleet registry.");
+      throw error;
+    } finally {
+      setFleetSyncLoading(false);
+    }
+  };
 
   const syncMaintenanceTemplateLibrary = async () => {
-  try {
-    setTemplateSyncLoading(true);
-    setTemplateSyncError("");
-    setTemplateSyncSuccessMessage("");
+    try {
+      setTemplateSyncLoading(true);
+      setTemplateSyncError("");
+      setTemplateSyncSuccessMessage("");
 
-    const response = await getMaintenanceTemplateLibrary();
-    const syncedAt = new Date().toISOString();
+      const response = await getMaintenanceTemplateLibrary();
+      const syncedAt = new Date().toISOString();
 
-    const library: StoredMaintenanceTemplateLibrary = {
-      templates: response.templates.map((template) => ({
-        code: template.code,
-        name: template.name,
-        templateType: template.templateType,
-        versionId: template.versionId,
-        versionNumber: template.versionNumber,
-        tasks: template.tasks.map((task) => ({
-          id: task.id,
-          category: task.category,
-          task: task.task,
-          tool: task.tool || "",
-          unit: task.unit,
-          required: task.required ?? true,
-          measurable: task.measurable ?? false,
-          photoRequiredOnFault: task.photoRequiredOnFault ?? true,
-          photoRequiredOnAttention: task.photoRequiredOnAttention ?? true,
+      const library: StoredMaintenanceTemplateLibrary = {
+        templates: response.templates.map((template) => ({
+          code: template.code,
+          name: template.name,
+          templateType: template.templateType,
+          versionId: template.versionId,
+          versionNumber: template.versionNumber,
+          tasks: template.tasks.map((task) => ({
+            id: task.id,
+            category: task.category,
+            task: task.task,
+            tool: task.tool || "",
+            unit: task.unit,
+            required: task.required ?? true,
+            measurable: task.measurable ?? false,
+            photoRequiredOnFault: task.photoRequiredOnFault ?? true,
+            photoRequiredOnAttention: task.photoRequiredOnAttention ?? true,
+          })),
         })),
-      })),
-      syncedAt,
-    };
+        syncedAt,
+      };
 
-    saveMaintenanceTemplateLibrary(library);
+      saveMaintenanceTemplateLibrary(library);
 
-    updateOfflineSyncMetadata({ maintenanceTemplateSyncedAt: syncedAt });
-    setOfflineSyncMetadata((current) => ({
-      ...current,
-      maintenanceTemplateSyncedAt: syncedAt,
-    }));
+      updateOfflineSyncMetadata({ maintenanceTemplateSyncedAt: syncedAt });
+      setOfflineSyncMetadata((current) => ({
+        ...current,
+        maintenanceTemplateSyncedAt: syncedAt,
+      }));
 
-    setTemplateSyncSuccessMessage("Maintenance template library synced successfully.");
-  } catch (error) {
-    console.error(error);
-    setTemplateSyncError("Failed to sync maintenance template library.");
-    throw error;
-  } finally {
-    setTemplateSyncLoading(false);
-  }
-};
+      setTemplateSyncSuccessMessage("Maintenance template library synced successfully.");
+    } catch (error) {
+      console.error(error);
+      setTemplateSyncError("Failed to sync maintenance template library.");
+      throw error;
+    } finally {
+      setTemplateSyncLoading(false);
+    }
+  };
 
   useEffect(() => {
     const shouldAutoSync =

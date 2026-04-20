@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./config";
 import type { MaintenanceTask, Vessel } from "../types/maintenance";
+import { createTasksFromModel } from "../data/maintenancePlanLibrary";
 
 type BackendMachine = {
   id: string;
@@ -85,13 +86,25 @@ export async function downloadFleetRegistry(): Promise<Vessel[]> {
   const machinePlanEntries = await Promise.all(
     vessels.flatMap((vessel) =>
       vessel.machines.map(async (machine) => {
-        const plan = await getMachinePlan(machine.id);
+        let backendTasks: MaintenanceTask[] = [];
+
+        try {
+          const plan = await getMachinePlan(machine.id);
+          backendTasks = plan.tasks.map(mapTask);
+        } catch (error) {
+          console.warn(`Failed to load backend plan for machine ${machine.id}`, error);
+        }
+
+        const fallbackTasks =
+          backendTasks.length > 0
+            ? backendTasks
+            : createTasksFromModel(machine.model, machine.starterType);
 
         return {
           vesselId: vessel.id,
           machineId: machine.id,
           machine,
-          tasks: plan.tasks.map(mapTask),
+          tasks: fallbackTasks,
         };
       })
     )
