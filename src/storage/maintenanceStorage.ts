@@ -18,6 +18,7 @@ export function loadFleet(): FleetData {
       correctiveDrafts: Array.isArray(parsed.correctiveDrafts)
         ? parsed.correctiveDrafts
         : [],
+      cfrDrafts: Array.isArray(parsed.cfrDrafts) ? parsed.cfrDrafts : [],
     };
   } catch {
     return emptyFleet;

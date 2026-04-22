@@ -16,6 +16,7 @@ import {
   type FleetSyncPayload,
   type FinishMaintenanceResult,
   type CorrectivePhoto,
+  type CfrDraft,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -23,6 +24,7 @@ import { MachineDetailPage } from "./pages/MachineDetailPage";
 import { MachinesPage } from "./pages/MachinesPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ReportDetailPage } from "./pages/ReportDetailPage";
+import { CfrReportPage } from "./pages/CfrReportPage";
 import { createId } from "./utils/createId";
 import { createTasksFromModel } from "./data/maintenancePlanLibrary";
 import { CorrectiveMaintenancePage } from "./pages/CorrectiveMaintenancePage";
@@ -42,6 +44,7 @@ import {
   updateOfflineSyncMetadata,
 } from "./storage/offlineSyncStorage";
 import { resolvePhotoUrl } from "./utils/photoUrl";
+import { CfrReportDetailPage } from "./pages/CfrReportDetailPage";
 
 function MachineDetailRoute({
   fleet,
@@ -228,6 +231,10 @@ export default function App() {
       ...current,
       vessels: current.vessels.filter((vessel) => vessel.id !== vesselId),
       reports: current.reports.filter((report) => report.vesselId !== vesselId),
+      correctiveDrafts: current.correctiveDrafts.filter(
+        (draft) => draft.vesselId !== vesselId
+      ),
+      cfrDrafts: current.cfrDrafts.filter((draft) => draft.vesselId !== vesselId),
       photos: current.photos.filter((photo) => {
         const vessel = current.vessels.find((item) => item.id === vesselId);
         const machineIds = vessel?.machines.map((plan) => plan.machine.id) || [];
@@ -769,6 +776,12 @@ export default function App() {
         };
       }),
       reports: current.reports.filter((report) => report.machineId !== payload.machineId),
+      correctiveDrafts: current.correctiveDrafts.filter(
+        (draft) => draft.machineId !== payload.machineId
+      ),
+      cfrDrafts: current.cfrDrafts.filter(
+        (draft) => draft.machineId !== payload.machineId
+      ),
       photos: current.photos.filter((photo) => photo.machineId !== payload.machineId),
     }));
   };
@@ -830,6 +843,15 @@ export default function App() {
     }));
   };
 
+  const markCfrDraftSynced = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      cfrDrafts: current.cfrDrafts.map((draft) =>
+        draft.id === draftId ? { ...draft, synced: true } : draft
+      ),
+    }));
+  };
+
   const deletePreventiveReport = (reportId: string) => {
     setFleet((current) => ({
       ...current,
@@ -841,8 +863,15 @@ export default function App() {
     onProgress?: (info: SyncProgressInfo) => void
   ) => {
     const pendingReports = fleet.reports.filter((item) => !item.synced);
-    const pendingDrafts = fleet.correctiveDrafts.filter((item) => !item.synced);
-    const totalItems = pendingReports.length + pendingDrafts.length;
+    const pendingCorrectiveDrafts = fleet.correctiveDrafts.filter(
+      (item) => !item.synced
+    );
+    const pendingCfrDrafts = fleet.cfrDrafts.filter((item) => !item.synced);
+
+    const totalItems =
+      pendingReports.length +
+      pendingCorrectiveDrafts.length +
+      pendingCfrDrafts.length;
 
     try {
       reportProgress(onProgress, 5, "Syncing fleet master data...");
@@ -875,8 +904,27 @@ export default function App() {
         );
       }
 
-      for (const draft of pendingDrafts) {
+      for (const draft of pendingCorrectiveDrafts) {
         await syncCorrectiveDraft(draft.id, (info) => {
+          const itemBase = completedItems / totalItems;
+          const itemWeight = 1 / totalItems;
+          const overallPercent = Math.round(
+            10 + (itemBase + (info.percent / 100) * itemWeight) * 90
+          );
+
+          reportProgress(onProgress, overallPercent, info.label);
+        });
+
+        completedItems += 1;
+        reportProgress(
+          onProgress,
+          Math.round(10 + (completedItems / totalItems) * 90),
+          `Completed ${completedItems} of ${totalItems} items...`
+        );
+      }
+
+      for (const draft of pendingCfrDrafts) {
+        await syncCfrDraft(draft.id, (info) => {
           const itemBase = completedItems / totalItems;
           const itemWeight = 1 / totalItems;
           const overallPercent = Math.round(
@@ -1020,6 +1068,78 @@ export default function App() {
     }
   };
 
+  const syncCfrDraft = async (
+    draftId: string,
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const draft = fleet.cfrDrafts.find((item) => item.id === draftId);
+
+    if (!draft) {
+      alert("CFR draft not found.");
+      return;
+    }
+
+    try {
+      reportProgress(onProgress, 5, `Syncing fleet data for ${draft.machineTag}...`);
+      await postFleetSync();
+
+      reportProgress(onProgress, 10, `Sending CFR for ${draft.machineTag}...`);
+      await postCfrDraft(draft);
+
+      const totalPhotos = draft.photos.length;
+      const uploadedPhotos: Record<
+        string,
+        { remotePhotoId: string; previewUrl?: string }
+      > = {};
+
+      if (totalPhotos === 0) {
+        reportProgress(onProgress, 80, `No photos to upload for ${draft.machineTag}...`);
+      } else {
+        for (let index = 0; index < totalPhotos; index += 1) {
+          const photo = draft.photos[index];
+
+          const uploaded = await uploadPhotoRecord({
+            ownerType: "CFR_DRAFT",
+            ownerId: draft.id,
+            machineId: draft.machineId,
+            caption: photo.caption,
+            photoId: photo.id,
+            onUploadProgress: (uploadPercent) => {
+              const fileStart = index / totalPhotos;
+              const fileSpan = 1 / totalPhotos;
+              const overallPercent = Math.round(
+                (0.15 + (fileStart + (uploadPercent / 100) * fileSpan) * 0.65) * 100
+              );
+
+              reportProgress(
+                onProgress,
+                overallPercent,
+                `Uploading photo ${index + 1} of ${totalPhotos} for ${draft.machineTag}...`
+              );
+            },
+          });
+
+          uploadedPhotos[photo.id] = {
+            remotePhotoId: uploaded.id,
+            previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+          };
+        }
+      }
+
+      reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
+      await cleanupCfrDraftPhotos(draft, uploadedPhotos);
+
+      markCfrDraftSynced(draftId);
+      reportProgress(onProgress, 100, `CFR for ${draft.machineTag} synced.`);
+
+      alert("CFR synced successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync CFR.");
+      throw error;
+    }
+  };
+
   const postCorrectiveDraft = async (draft: CorrectiveDraft) => {
     const payload = {
       ...draft,
@@ -1065,6 +1185,34 @@ export default function App() {
     return response.json();
   };
 
+  const postCfrDraft = async (draft: CfrDraft) => {
+    const payload = {
+      ...draft,
+      photos: draft.photos.map((photo) => ({
+        id: photo.id,
+        filename: photo.filename,
+        caption: photo.caption,
+        createdAt: photo.createdAt,
+        previewUrl: `/api/photos/${photo.id}`,
+      })),
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/sync/cfr`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`CFR sync failed: ${text}`);
+    }
+
+    return response.json();
+  };
+
   const uploadPhotoRecord = async ({
     ownerType,
     ownerId,
@@ -1074,7 +1222,7 @@ export default function App() {
     photoId,
     onUploadProgress,
   }: {
-    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK";
+    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT";
     ownerId: string;
     machineId: string;
     taskId?: string;
@@ -1303,6 +1451,33 @@ export default function App() {
     }));
   };
 
+  const cleanupCfrDraftPhotos = async (
+    draft: CfrDraft,
+    uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
+  ) => {
+    for (const photo of draft.photos) {
+      await deletePhotoBlob(photo.id);
+    }
+
+    setFleet((current) => ({
+      ...current,
+      cfrDrafts: current.cfrDrafts.map((item) =>
+        item.id === draft.id
+          ? {
+            ...item,
+            photos: item.photos.map((photo) => ({
+              ...photo,
+              previewUrl: uploadedPhotos[photo.id]?.previewUrl ?? photo.previewUrl,
+              remotePhotoId: uploadedPhotos[photo.id]?.remotePhotoId ?? photo.remotePhotoId,
+              blobStored: false,
+              file: undefined,
+            })),
+          }
+          : item
+      ),
+    }));
+  };
+
   const toAbsoluteApiUrl = (url?: string) => {
     if (!url) return undefined;
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -1431,6 +1606,7 @@ export default function App() {
       fleet.vessels.length === 0 &&
       fleet.reports.length === 0 &&
       fleet.correctiveDrafts.length === 0;
+      fleet.cfrDrafts.length === 0;
 
     if (!shouldAutoSync) return;
 
@@ -1470,6 +1646,36 @@ export default function App() {
     if (hasError) {
       throw new Error("One or more offline sync steps failed.");
     }
+  };
+
+  const saveCfrDraft = (draft: CfrDraft) => {
+    const payload = {
+      ...draft,
+      synced: false,
+      reportCategory: "cfr" as const,
+    };
+
+    setFleet((current) => {
+      const existing = current.cfrDrafts.find((item) => item.id === payload.id);
+
+      return {
+        ...current,
+        cfrDrafts: existing
+          ? current.cfrDrafts.map((item) => (item.id === payload.id ? payload : item))
+          : [payload, ...current.cfrDrafts],
+      };
+    });
+  };
+
+  const deleteCfrDraft = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      cfrDrafts: current.cfrDrafts.filter((item) => item.id !== draftId),
+    }));
+  };
+
+  const getCfrDraftByMachine = (machineId: string) => {
+    return fleet.cfrDrafts.find((item) => item.machineId === machineId) || null;
   };
 
 
@@ -1526,11 +1732,14 @@ export default function App() {
             <SyncPage
               reports={fleet.reports}
               correctiveDrafts={fleet.correctiveDrafts}
+              cfrDrafts={fleet.cfrDrafts}
               onSyncAll={syncAllPendingItems}
               onSyncReport={syncPreventiveReport}
               onSyncCorrectiveDraft={syncCorrectiveDraft}
+              onSyncCfrDraft={syncCfrDraft}
               onDeleteReport={deletePreventiveReport}
               onDeleteCorrectiveDraft={deleteCorrectiveDraft}
+              onDeleteCfrDraft={deleteCfrDraft}
               onSyncOfflineRegistry={syncOfflineRegistry}
               fleetSyncLoading={fleetSyncLoading}
               fleetSyncError={fleetSyncError}
@@ -1551,6 +1760,7 @@ export default function App() {
               vessels={fleet.vessels}
               reports={fleet.reports}
               correctiveDrafts={fleet.correctiveDrafts}
+              cfrDrafts={fleet.cfrDrafts}
             />
           }
         />
@@ -1602,6 +1812,23 @@ export default function App() {
               getExistingDraft={getCorrectiveDraftByMachine}
             />
           }
+        />
+
+        <Route
+          path="/vessels/:vesselId/machines/:machineId/cfr"
+          element={
+            <CfrReportPage
+              vessels={fleet.vessels}
+              onSaveDraft={saveCfrDraft}
+              onDeleteDraft={deleteCfrDraft}
+              getExistingDraft={getCfrDraftByMachine}
+            />
+          }
+        />
+
+        <Route
+          path="/cfr-reports/:draftId"
+          element={<CfrReportDetailPage cfrDrafts={fleet.cfrDrafts} />}
         />
 
         <Route

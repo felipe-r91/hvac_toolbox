@@ -145,6 +145,7 @@ export type FleetData = {
   reports: MaintenanceReport[];
   photos: PhotoRecord[];
   correctiveDrafts: CorrectiveDraft[];
+  cfrDrafts: CfrDraft[];
 };
 
 export type PhotoRecord = {
@@ -204,7 +205,7 @@ export type CorrectiveDraft = {
   furtherActionRequired: string;
 
   machineReturnedToService: "yes" | "no" | "unknown";
-  reportCategory: "corrective" | "cfr";
+  reportCategory: "corrective";
 
   photos: CorrectivePhoto[];
   synced?: boolean;
@@ -213,7 +214,11 @@ export type CorrectiveDraft = {
 
 export type UploadedPhotoRecord = {
   id: string;
-  ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK";
+  ownerType:
+    | "CORRECTIVE_DRAFT"
+    | "PREVENTIVE_MACHINE"
+    | "PREVENTIVE_TASK"
+    | "CFR_DRAFT";
   ownerId: string;
   machineId: string;
   taskId?: string;
@@ -269,4 +274,38 @@ export type FailureCode =
   reportId: string;
   linkedCorrectiveDraftId?: string;
   redirectedTo: "health_check" | "corrective";
+};
+
+export type CfrDraft = {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  machineId: string;
+  machineTag: string;
+  machineModel: string;
+  machineType: string;
+  machineStarterType: string;
+  machineLocation: string;
+  createdAt: string;
+
+  machineStatus: "online" | "down";
+  reportCategory: "cfr";
+
+  failureComponent?: FailureComponent;
+  failureMode?: FailureMode;
+  failureCode?: FailureCode;
+
+  conditionFound: string;
+  symptomsObserved: string;
+  alarmsObserved: string;
+  operationalImpact: string;
+
+  preliminaryDiagnosis: string;
+  confirmedCause: string;
+
+  recommendations: string;
+  furtherActionRequired: string;
+
+  photos: CorrectivePhoto[];
+  synced?: boolean;
 };

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import {
+  type CfrDraft,
   type CorrectiveDraft,
   type MaintenanceReport,
   type ReportCategory,
@@ -11,6 +12,7 @@ type Props = {
   vessels: Vessel[];
   reports: MaintenanceReport[];
   correctiveDrafts: CorrectiveDraft[];
+  cfrDrafts: CfrDraft[];
 };
 
 function statusBadge(status: "online" | "down") {
@@ -58,14 +60,28 @@ type MachineHistoryItem =
   | {
       id: string;
       source: "corrective_draft";
-      reportCategory: "corrective" | "cfr";
+      reportCategory: "corrective";
       date: string;
       status: "online" | "down";
       label: string;
       correctiveDraft: CorrectiveDraft;
+    }
+  | {
+      id: string;
+      source: "cfr_draft";
+      reportCategory: "cfr";
+      date: string;
+      status: "online" | "down";
+      label: string;
+      cfrDraft: CfrDraft;
     };
 
-export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
+export function ReportsPage({
+  vessels,
+  reports,
+  correctiveDrafts,
+  cfrDrafts,
+}: Props) {
   return (
     <section className="space-y-4">
       <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -87,8 +103,14 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
             (draft) => draft.vesselId === vessel.id
           );
 
+          const vesselCfrDrafts = cfrDrafts.filter(
+            (draft) => draft.vesselId === vessel.id
+          );
+
           const vesselHistoryCount =
-            vesselPreventiveReports.length + vesselCorrectiveDrafts.length;
+            vesselPreventiveReports.length +
+            vesselCorrectiveDrafts.length +
+            vesselCfrDrafts.length;
 
           return (
             <details
@@ -134,18 +156,32 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                       (draft): MachineHistoryItem => ({
                         id: draft.id,
                         source: "corrective_draft",
-                        reportCategory: draft.reportCategory,
+                        reportCategory: "corrective",
                         date: draft.createdAt,
-                        status:
-                          draft.machineReturnedToService === "yes" ? "online" : "down",
+                        status: "down",
                         label: new Date(draft.createdAt).toLocaleString(),
                         correctiveDraft: draft,
+                      })
+                    );
+
+                  const machineCfrDrafts = vesselCfrDrafts
+                    .filter((draft) => draft.machineId === plan.machine.id)
+                    .map(
+                      (draft): MachineHistoryItem => ({
+                        id: draft.id,
+                        source: "cfr_draft",
+                        reportCategory: "cfr",
+                        date: draft.createdAt,
+                        status: draft.machineStatus,
+                        label: new Date(draft.createdAt).toLocaleString(),
+                        cfrDraft: draft,
                       })
                     );
 
                   const machineHistory = [
                     ...machinePreventiveReports,
                     ...machineCorrectiveDrafts,
+                    ...machineCfrDrafts,
                   ].sort(
                     (a, b) =>
                       new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -209,20 +245,46 @@ export function ReportsPage({ vessels, reports, correctiveDrafts }: Props) {
                               );
                             }
 
+                            if (item.source === "corrective_draft") {
+                              return (
+                                <Link
+                                  key={item.id}
+                                  to={`/corrective-reports/${item.id}`}
+                                  className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <div>{item.label}</div>
+                                      <div className="mt-1 text-xs text-slate-500">
+                                        {item.correctiveDraft.problemSummary ||
+                                          "Corrective report"}
+                                      </div>
+                                    </div>
+
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${reportCategoryBadge(
+                                        item.reportCategory
+                                      )}`}
+                                    >
+                                      {reportCategoryLabel(item.reportCategory)}
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            }
+
                             return (
                               <Link
                                 key={item.id}
-                                to={`/corrective-reports/${item.id}`}
+                                to={`/cfr-reports/${item.id}`}
                                 className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
                               >
                                 <div className="flex items-center justify-between gap-3">
                                   <div>
                                     <div>{item.label}</div>
                                     <div className="mt-1 text-xs text-slate-500">
-                                      {item.correctiveDraft.problemSummary ||
-                                        (item.reportCategory === "cfr"
-                                          ? "Conditions found report"
-                                          : "Corrective report")}
+                                      {item.cfrDraft.conditionFound ||
+                                        "Conditions found report"}
                                     </div>
                                   </div>
 

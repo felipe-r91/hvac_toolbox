@@ -100,6 +100,16 @@ export function ShipMachinesPage({ vessels }: Props) {
           setModalOpen(false);
           setSelectedMachine(null);
         }}
+        onChooseCfr={() => {
+          if (!selectedMachine) return;
+
+          navigate(
+            `/vessels/${selectedMachine.vesselId}/machines/${selectedMachine.machineId}/cfr`
+          );
+
+          setModalOpen(false);
+          setSelectedMachine(null);
+        }}
       />
     </main>
   );

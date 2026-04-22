@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
 import {
-  type CorrectiveDraft,
   type CorrectivePhoto,
   type FailureCode,
   type FailureComponent,
@@ -13,6 +12,40 @@ import {
 import { createId } from "../utils/createId";
 import { compressImageFile } from "../utils/imageCompression";
 import { deletePhotoBlob, savePhotoBlob } from "../storage/photoDb";
+
+export type CfrDraft = {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  machineId: string;
+  machineTag: string;
+  machineModel: string;
+  machineType: string;
+  machineStarterType: string;
+  machineLocation: string;
+  createdAt: string;
+
+  machineStatus: "online" | "down";
+  reportCategory: "cfr";
+
+  failureComponent?: FailureComponent;
+  failureMode?: FailureMode;
+  failureCode?: FailureCode;
+
+  conditionFound: string;
+  symptomsObserved: string;
+  alarmsObserved: string;
+  operationalImpact: string;
+
+  preliminaryDiagnosis: string;
+  confirmedCause: string;
+
+  recommendations: string;
+  furtherActionRequired: string;
+
+  photos: CorrectivePhoto[];
+  synced?: boolean;
+};
 
 const failureComponents: FailureComponent[] = [
   "Compressor",
@@ -67,12 +100,12 @@ const failureCodes: { value: FailureCode; label: string }[] = [
 
 type Props = {
   vessels: Vessel[];
-  onSaveDraft: (draft: CorrectiveDraft) => void;
+  onSaveDraft: (draft: CfrDraft) => void;
   onDeleteDraft: (draftId: string) => void;
-  getExistingDraft: (machineId: string) => CorrectiveDraft | null;
+  getExistingDraft: (machineId: string) => CfrDraft | null;
 };
 
-export function CorrectiveMaintenancePage({
+export function CfrReportPage({
   vessels,
   onSaveDraft,
   onDeleteDraft,
@@ -83,7 +116,7 @@ export function CorrectiveMaintenancePage({
   const vessel = vessels.find((item) => item.id === vesselId);
   const plan = vessel?.machines.find((item) => item.machine.id === machineId);
 
-  const createEmptyDraft = (): CorrectiveDraft | null => {
+  const createEmptyDraft = (): CfrDraft | null => {
     if (!vessel || !plan) return null;
 
     return {
@@ -98,32 +131,28 @@ export function CorrectiveMaintenancePage({
       machineLocation: plan.machine.location,
       createdAt: new Date().toISOString(),
 
+      machineStatus: "online",
+      reportCategory: "cfr",
+
       failureComponent: undefined,
       failureMode: undefined,
       failureCode: undefined,
 
-      reportCategory: "corrective",
-
-      problemSummary: "",
       conditionFound: "",
       symptomsObserved: "",
       alarmsObserved: "",
       operationalImpact: "",
-
       preliminaryDiagnosis: "",
       confirmedCause: "",
-
-      correctiveAction: "",
       recommendations: "",
       furtherActionRequired: "",
 
-      machineReturnedToService: "unknown",
       photos: [],
       synced: false,
     };
   };
 
-  const [draft, setDraft] = useState<CorrectiveDraft | null>(() => {
+  const [draft, setDraft] = useState<CfrDraft | null>(() => {
     if (!vessel || !plan || !machineId) return null;
 
     const existing = getExistingDraft(machineId);
@@ -136,11 +165,40 @@ export function CorrectiveMaintenancePage({
     return <div className="p-6">Machine not found.</div>;
   }
 
-  const updateField = <K extends keyof CorrectiveDraft>(
-    field: K,
-    value: CorrectiveDraft[K]
-  ) => {
+  const isMachineDown = draft.machineStatus === "down";
+
+  const updateField = <K extends keyof CfrDraft>(field: K, value: CfrDraft[K]) => {
     setDraft((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const updateMachineStatus = (status: "online" | "down") => {
+    if (status === "online") {
+      setDraft((current) =>
+        current
+          ? {
+              ...current,
+              machineStatus: "online",
+              failureComponent: undefined,
+              failureMode: undefined,
+              failureCode: undefined,
+              symptomsObserved: "",
+              operationalImpact: "",
+              preliminaryDiagnosis: "",
+              confirmedCause: "",
+            }
+          : current
+      );
+      return;
+    }
+
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            machineStatus: "down",
+          }
+        : current
+    );
   };
 
   const addPhoto = async (file: File) => {
@@ -208,14 +266,8 @@ export function CorrectiveMaintenancePage({
   };
 
   const saveDraftLocally = () => {
-    const payload: CorrectiveDraft = {
-      ...draft,
-      reportCategory: "corrective",
-      synced: false,
-    };
-
-    onSaveDraft(payload);
-    alert("Corrective report saved locally.");
+    onSaveDraft({ ...draft, reportCategory: "cfr", synced: false });
+    alert("CFR saved locally.");
     setDraft(createEmptyDraft());
   };
 
@@ -225,20 +277,19 @@ export function CorrectiveMaintenancePage({
   };
 
   const deleteLocalDraft = () => {
-    const confirmed = window.confirm("Delete this local corrective report?");
+    const confirmed = window.confirm("Delete this local CFR?");
     if (!confirmed) return;
-
     clearCurrentDraft();
   };
 
-  const canSaveDraft = Boolean(
-    draft.failureComponent &&
-      draft.failureMode &&
-      draft.failureCode &&
-      draft.problemSummary.trim() &&
-      draft.conditionFound.trim() &&
-      draft.correctiveAction.trim()
-  );
+  const canSaveDraft = isMachineDown
+    ? Boolean(
+        draft.failureComponent &&
+          draft.failureMode &&
+          draft.failureCode &&
+          draft.conditionFound.trim()
+      )
+    : Boolean(draft.conditionFound.trim());
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
@@ -247,10 +298,10 @@ export function CorrectiveMaintenancePage({
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h1 className="text-2xl font-semibold text-slate-900">
-            Corrective Report
+            Conditions Found Report
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Document the fault, diagnosis, corrective work performed, and service result.
+            Record the condition found and the machine operating status at the time of assessment.
           </p>
         </section>
 
@@ -270,9 +321,7 @@ export function CorrectiveMaintenancePage({
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
               <div className="text-xs font-medium text-slate-500">Location</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.machineLocation}
-              </div>
+              <div className="mt-1 text-sm text-slate-900">{draft.machineLocation}</div>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
@@ -285,96 +334,115 @@ export function CorrectiveMaintenancePage({
         </section>
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Failure Classification
-          </h2>
-
+          <h2 className="text-lg font-semibold text-slate-900">Machine Status</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Use structured fields so recurring failures can be tracked accurately.
+            Select whether the machine was online or down during the onboard assessment.
           </p>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Failure component
-              </span>
-              <select
-                value={draft.failureComponent || ""}
-                onChange={(e) =>
-                  updateField("failureComponent", e.target.value as FailureComponent)
-                }
-                className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
-              >
-                <option value="">Select component</option>
-                {failureComponents.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Failure mode
-              </span>
-              <select
-                value={draft.failureMode || ""}
-                onChange={(e) =>
-                  updateField("failureMode", e.target.value as FailureMode)
-                }
-                className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
-              >
-                <option value="">Select failure mode</option>
-                {failureModes.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="mt-3 block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">
-              Failure code
-            </span>
-            <select
-              value={draft.failureCode || ""}
-              onChange={(e) =>
-                updateField("failureCode", e.target.value as FailureCode)
-              }
-              className="w-full h-12 rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => updateMachineStatus("online")}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${
+                !isMachineDown
+                  ? "bg-green-100 text-green-800 ring-green-200"
+                  : "bg-white text-slate-700 ring-slate-300"
+              }`}
             >
-              <option value="">Select failure code</option>
-              {failureCodes.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              Online
+            </button>
+
+            <button
+              type="button"
+              onClick={() => updateMachineStatus("down")}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${
+                isMachineDown
+                  ? "bg-red-100 text-red-800 ring-red-200"
+                  : "bg-white text-slate-700 ring-slate-300"
+              }`}
+            >
+              Down
+            </button>
+          </div>
         </section>
 
+        {isMachineDown ? (
+          <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Failure Classification
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Visible only when the machine is found down.
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">
+                  Failure component
+                </span>
+                <select
+                  value={draft.failureComponent || ""}
+                  onChange={(e) =>
+                    updateField("failureComponent", e.target.value as FailureComponent)
+                  }
+                  className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+                >
+                  <option value="">Select component</option>
+                  {failureComponents.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">
+                  Failure mode
+                </span>
+                <select
+                  value={draft.failureMode || ""}
+                  onChange={(e) =>
+                    updateField("failureMode", e.target.value as FailureMode)
+                  }
+                  className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+                >
+                  <option value="">Select failure mode</option>
+                  {failureModes.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-3 block">
+              <span className="mb-1 block text-xs font-medium text-slate-600">
+                Failure code
+              </span>
+              <select
+                value={draft.failureCode || ""}
+                onChange={(e) =>
+                  updateField("failureCode", e.target.value as FailureCode)
+                }
+                className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+              >
+                <option value="">Select failure code</option>
+                {failureCodes.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+        ) : null}
+
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Fault Description
-          </h2>
+          <h2 className="text-lg font-semibold text-slate-900">Condition Found</h2>
 
           <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Problem summary
-              </span>
-              <textarea
-                value={draft.problemSummary}
-                onChange={(e) => updateField("problemSummary", e.target.value)}
-                rows={3}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="Short summary of the failure."
-              />
-            </label>
-
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-slate-600">
                 Condition found
@@ -384,23 +452,25 @@ export function CorrectiveMaintenancePage({
                 onChange={(e) => updateField("conditionFound", e.target.value)}
                 rows={4}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="Describe the physical condition found on board."
+                placeholder="Describe the condition found on board."
               />
             </label>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-600">
-                  Symptoms observed
-                </span>
-                <textarea
-                  value={draft.symptomsObserved}
-                  onChange={(e) => updateField("symptomsObserved", e.target.value)}
-                  rows={4}
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                  placeholder="Noise, vibration, leakage, trip, overheating..."
-                />
-              </label>
+              {isMachineDown ? (
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-slate-600">
+                    Symptoms observed
+                  </span>
+                  <textarea
+                    value={draft.symptomsObserved}
+                    onChange={(e) => updateField("symptomsObserved", e.target.value)}
+                    rows={4}
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+                    placeholder="Noise, vibration, trip, leakage, overheating..."
+                  />
+                </label>
+              ) : null}
 
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-slate-600">
@@ -416,18 +486,20 @@ export function CorrectiveMaintenancePage({
               </label>
             </div>
 
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Operational impact
-              </span>
-              <textarea
-                value={draft.operationalImpact}
-                onChange={(e) => updateField("operationalImpact", e.target.value)}
-                rows={3}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="How the fault affected operation."
-              />
-            </label>
+            {isMachineDown ? (
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">
+                  Operational impact
+                </span>
+                <textarea
+                  value={draft.operationalImpact}
+                  onChange={(e) => updateField("operationalImpact", e.target.value)}
+                  rows={3}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+                  placeholder="How the fault affected operation."
+                />
+              </label>
+            ) : null}
           </div>
         </section>
 
@@ -438,57 +510,44 @@ export function CorrectiveMaintenancePage({
           onDeletePhoto={deletePhoto}
         />
 
+        {isMachineDown ? (
+          <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">Diagnosis</h2>
+
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">
+                  Preliminary diagnosis
+                </span>
+                <textarea
+                  value={draft.preliminaryDiagnosis}
+                  onChange={(e) => updateField("preliminaryDiagnosis", e.target.value)}
+                  rows={4}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+                  placeholder="What you believe caused the issue."
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">
+                  Confirmed cause
+                </span>
+                <textarea
+                  value={draft.confirmedCause}
+                  onChange={(e) => updateField("confirmedCause", e.target.value)}
+                  rows={4}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
+                  placeholder="Confirmed root cause, if identified."
+                />
+              </label>
+            </div>
+          </section>
+        ) : null}
+
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Diagnosis</h2>
+          <h2 className="text-lg font-semibold text-slate-900">Recommendations</h2>
 
           <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Preliminary diagnosis
-              </span>
-              <textarea
-                value={draft.preliminaryDiagnosis}
-                onChange={(e) => updateField("preliminaryDiagnosis", e.target.value)}
-                rows={4}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="What you believed caused the issue."
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Confirmed cause
-              </span>
-              <textarea
-                value={draft.confirmedCause}
-                onChange={(e) => updateField("confirmedCause", e.target.value)}
-                rows={4}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="Confirmed root cause, if identified."
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Corrective Actions
-          </h2>
-
-          <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Corrective action performed
-              </span>
-              <textarea
-                value={draft.correctiveAction}
-                onChange={(e) => updateField("correctiveAction", e.target.value)}
-                rows={4}
-                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="Describe what was done on board."
-              />
-            </label>
-
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-slate-600">
                 Recommendations
@@ -498,7 +557,7 @@ export function CorrectiveMaintenancePage({
                 onChange={(e) => updateField("recommendations", e.target.value)}
                 rows={4}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="Recommended actions, repair plan, replacement, monitoring..."
+                placeholder="Recommended actions, monitoring, repair planning..."
               />
             </label>
 
@@ -508,40 +567,20 @@ export function CorrectiveMaintenancePage({
               </span>
               <textarea
                 value={draft.furtherActionRequired}
-                onChange={(e) =>
-                  updateField("furtherActionRequired", e.target.value)
-                }
+                onChange={(e) => updateField("furtherActionRequired", e.target.value)}
                 rows={3}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-                placeholder="Parts required, follow-up visit, docking, shutdown, etc."
+                placeholder="Parts required, follow-up visit, drydock, shutdown, etc."
               />
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">
-                Machine returned to service
-              </span>
-              <select
-                value={draft.machineReturnedToService}
-                onChange={(e) =>
-                  updateField(
-                    "machineReturnedToService",
-                    e.target.value as "yes" | "no" | "unknown"
-                  )
-                }
-                className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
-              >
-                <option value="unknown">Unknown</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
             </label>
           </div>
         </section>
 
         {!canSaveDraft ? (
           <p className="text-sm text-red-600">
-            Failure component, failure mode, failure code, problem summary, condition found, and corrective action performed are required.
+            {isMachineDown
+              ? "Failure component, failure mode, failure code, and condition found are required."
+              : "Condition found is required."}
           </p>
         ) : null}
 

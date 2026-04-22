@@ -15,18 +15,16 @@ function formatFailureCode(code?: string) {
     .join(" ");
 }
 
-function getReportCategoryTitle(category: CorrectiveDraft["reportCategory"]) {
-  return category === "cfr" ? "Conditions Found Report" : "Corrective Report";
-}
-
-function getReportCategoryBadge(category: CorrectiveDraft["reportCategory"]) {
-  return category === "cfr"
-    ? "bg-purple-100 text-purple-800"
-    : "bg-yellow-100 text-yellow-800";
-}
-
-function getReportCategoryLabel(category: CorrectiveDraft["reportCategory"]) {
-  return category === "cfr" ? "CFR" : "Corrective";
+function formatReturnedToService(value: CorrectiveDraft["machineReturnedToService"]) {
+  switch (value) {
+    case "yes":
+      return "Yes";
+    case "no":
+      return "No";
+    case "unknown":
+    default:
+      return "Unknown";
+  }
 }
 
 export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
@@ -35,7 +33,7 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
   const draft = correctiveDrafts.find((item) => item.id === draftId);
 
   if (!draft) {
-    return <div className="p-6">Report report not found.</div>;
+    return <div className="p-6">Corrective report not found.</div>;
   }
 
   return (
@@ -47,19 +45,15 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900">
-                {getReportCategoryTitle(draft.reportCategory)}
+                Corrective Report
               </h1>
               <p className="mt-1 text-sm text-slate-500">
                 {new Date(draft.createdAt).toLocaleString()}
               </p>
             </div>
 
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-medium ${getReportCategoryBadge(
-                draft.reportCategory
-              )}`}
-            >
-              {getReportCategoryLabel(draft.reportCategory)}
+            <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+              Corrective
             </span>
           </div>
         </section>
@@ -68,29 +62,13 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
           <h2 className="text-lg font-semibold text-slate-900">Machine</h2>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Ship</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.vesselName}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Tag</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.machineTag}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Location</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.machineLocation}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Model</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.machineModel} · {draft.machineStarterType}
-              </div>
-            </div>
+            <InfoCard label="Ship" value={draft.vesselName} />
+            <InfoCard label="Tag" value={draft.machineTag} />
+            <InfoCard label="Location" value={draft.machineLocation} />
+            <InfoCard
+              label="Model"
+              value={`${draft.machineModel} · ${draft.machineStarterType}`}
+            />
           </div>
         </section>
 
@@ -100,46 +78,71 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
           </h2>
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Failure component</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.failureComponent || "—"}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Failure mode</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.failureMode || "—"}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Failure code</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {formatFailureCode(draft.failureCode)}
-              </div>
-            </div>
+            <InfoCard
+              label="Failure component"
+              value={draft.failureComponent || "—"}
+            />
+            <InfoCard
+              label="Failure mode"
+              value={draft.failureMode || "—"}
+            />
+            <InfoCard
+              label="Failure code"
+              value={formatFailureCode(draft.failureCode)}
+            />
           </div>
         </section>
 
-        <DetailSection title="Problem Summary" value={draft.problemSummary} />
-        <DetailSection title="Condition Found" value={draft.conditionFound} />
-        <DetailSection title="Symptoms Observed" value={draft.symptomsObserved} />
-        <DetailSection title="Alarms / Abnormal Readings" value={draft.alarmsObserved} />
-        <DetailSection title="Operational Impact" value={draft.operationalImpact} />
-        <DetailSection title="Preliminary Diagnosis" value={draft.preliminaryDiagnosis} />
-        <DetailSection title="Confirmed Cause" value={draft.confirmedCause} />
-        <DetailSection title="Corrective Action Performed" value={draft.correctiveAction} />
-        <DetailSection title="Recommendations" value={draft.recommendations} />
-        <DetailSection title="Further Action Required" value={draft.furtherActionRequired} />
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Fault Description
+          </h2>
+
+          <div className="mt-4 space-y-4">
+            <DetailBlock title="Problem Summary" value={draft.problemSummary} />
+            <DetailBlock title="Condition Found" value={draft.conditionFound} />
+            <DetailBlock title="Symptoms Observed" value={draft.symptomsObserved} />
+            <DetailBlock title="Alarms / Abnormal Readings" value={draft.alarmsObserved} />
+            <DetailBlock title="Operational Impact" value={draft.operationalImpact} />
+          </div>
+        </section>
+
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">Diagnosis</h2>
+
+          <div className="mt-4 space-y-4">
+            <DetailBlock
+              title="Preliminary Diagnosis"
+              value={draft.preliminaryDiagnosis}
+            />
+            <DetailBlock title="Confirmed Cause" value={draft.confirmedCause} />
+          </div>
+        </section>
+
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">
+            Corrective Actions
+          </h2>
+
+          <div className="mt-4 space-y-4">
+            <DetailBlock
+              title="Corrective Action Performed"
+              value={draft.correctiveAction}
+            />
+            <DetailBlock title="Recommendations" value={draft.recommendations} />
+            <DetailBlock
+              title="Further Action Required"
+              value={draft.furtherActionRequired}
+            />
+          </div>
+        </section>
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">
             Machine Returned to Service
           </h2>
           <p className="mt-3 text-sm text-slate-700">
-            {draft.machineReturnedToService}
+            {formatReturnedToService(draft.machineReturnedToService)}
           </p>
         </section>
 
@@ -186,13 +189,22 @@ export function CorrectiveReportDetailPage({ correctiveDrafts }: Props) {
   );
 }
 
-function DetailSection({ title, value }: { title: string; value: string }) {
+function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">
+    <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className="mt-1 text-sm text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function DetailBlock({ title, value }: { title: string; value: string }) {
+  return (
+    <div>
+      <h3 className="text-sm font-medium text-slate-600">{title}</h3>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
         {value || "—"}
       </p>
-    </section>
+    </div>
   );
 }
