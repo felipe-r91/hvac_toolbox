@@ -11,6 +11,8 @@ type BackendMachine = {
   serialNumber: string;
   type: string;
   starterType: string;
+  machinePhotoId?: string;
+  machinePhotoPreviewUrl?: string;
 };
 
 type BackendVessel = {
@@ -82,6 +84,11 @@ function mapTask(task: BackendPlanTask): MaintenanceTask {
 
 export async function downloadFleetRegistry(): Promise<Vessel[]> {
   const vessels = await getFleetVessels();
+  const resolveBackendPhotoUrl = (url?: string) => {
+    if (!url) return undefined;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${API_BASE_URL}${url}`;
+  };
 
   const machinePlanEntries = await Promise.all(
     vessels.flatMap((vessel) =>
@@ -137,6 +144,11 @@ export async function downloadFleetRegistry(): Promise<Vessel[]> {
           failureMode: undefined,
           failureCode: undefined,
           failureNotes: "",
+
+          machinePhotoId: machine.machinePhotoId,
+          machinePhotoPreviewUrl: resolveBackendPhotoUrl(machine.machinePhotoPreviewUrl),
+          machinePhotoRemoteId: machine.machinePhotoId,
+          machinePhotoBlobStored: false,
         },
         tasks: entry?.tasks || [],
       };
