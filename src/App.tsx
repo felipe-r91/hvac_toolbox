@@ -15,7 +15,6 @@ import {
   type UploadedPhotoRecord,
   type FleetSyncPayload,
   type FinishMaintenanceResult,
-  type CorrectivePhoto,
   type CfrDraft,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
@@ -76,7 +75,7 @@ function MachineDetailRoute({
   ) => void;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
-  onDeleteMachinePhoto: (machineId: string, previewUrl: string) => void;
+  onDeleteMachinePhoto: (machineId: string) => void;
   onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
   getMachinePhotoCount: (machineId: string) => number;
   getTaskPhotoCount: (taskId: string) => number;
@@ -84,12 +83,13 @@ function MachineDetailRoute({
 }) {
   const { vesselId = "", machineId = "" } = useParams();
 
-  const getMachinePhotoUrls = (currentMachineId: string) =>
-    fleet.photos
-      .filter((photo) => photo.machineId === currentMachineId && photo.kind === "machine")
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((photo) => resolvePhotoUrl(photo))
-      .filter((url): url is string => Boolean(url));
+  const getMachinePhotoUrls = (currentMachineId: string) => {
+    const machine = fleet.vessels
+      .flatMap((vessel) => vessel.machines)
+      .find((plan) => plan.machine.id === currentMachineId)?.machine;
+
+    return machine?.machinePhotoPreviewUrl ? [machine.machinePhotoPreviewUrl] : [];
+  };
 
   const getTaskPhotoUrls = (currentTaskId: string) =>
     fleet.photos
@@ -121,7 +121,7 @@ function MachineDetailRoute({
       getTaskPhotoCount={getTaskPhotoCount}
       getMachinePhotoUrls={getMachinePhotoUrls}
       getTaskPhotoUrls={getTaskPhotoUrls}
-      onDeleteMachinePhoto={(previewUrl) => onDeleteMachinePhoto(machineId, previewUrl)}
+      onDeleteMachinePhoto={() => onDeleteMachinePhoto(machineId)}
       onDeleteTaskPhoto={(taskId, previewUrl) => onDeleteTaskPhoto(taskId, previewUrl)}
     />
   );
@@ -143,7 +143,7 @@ function MachineDetailRouteWithNavigation(props: {
   onCreateReport: (vesselId: string, machineId: string) => Promise<FinishMaintenanceResult | null>;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
-  onDeleteMachinePhoto: (machineId: string, previewUrl: string) => void;
+  onDeleteMachinePhoto: (machineId: string) => void;
   onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
   getMachinePhotoCount: (machineId: string) => number;
   getTaskPhotoCount: (taskId: string) => number;
@@ -355,26 +355,34 @@ export default function App() {
       createdAt: new Date().toISOString(),
     });
 
+    let previousPhotoId: string | undefined;
+
     setFleet((current) => ({
       ...current,
-      photos: [
-        ...current.photos.filter(
-          (photo) => !(photo.machineId === machineId && photo.kind === "machine")
-        ),
-        {
-          id: photoId,
-          machineId,
-          kind: "machine",
-          filename: compressedFile.name,
-          mimeType: compressedFile.type,
-          createdAt: new Date().toISOString(),
-          required: true,
-          synced: false,
-          previewUrl,
-          blobStored: true,
-        },
-      ],
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        machines: vessel.machines.map((plan) => {
+          if (plan.machine.id !== machineId) return plan;
+
+          previousPhotoId = plan.machine.machinePhotoId;
+
+          return {
+            ...plan,
+            machine: {
+              ...plan.machine,
+              machinePhotoId: photoId,
+              machinePhotoPreviewUrl: previewUrl,
+              machinePhotoRemoteId: undefined,
+              machinePhotoBlobStored: true,
+            },
+          };
+        }),
+      })),
     }));
+
+    if (previousPhotoId) {
+      await deletePhotoBlob(previousPhotoId);
+    }
   };
 
   const addTaskPhoto = async (machineId: string, taskId: string, file: File) => {
@@ -431,24 +439,35 @@ export default function App() {
     }));
   };
 
-  const deleteMachinePhoto = (machineId: string, previewUrl: string) => {
-
-    const photoToDelete = fleet.photos.find((photo) => photo.previewUrl === previewUrl)
-
-    if (!photoToDelete) return;
-    deletePhotoBlob(photoToDelete.id)
+  const deleteMachinePhoto = async (machineId: string) => {
+    let photoIdToDelete: string | undefined;
 
     setFleet((current) => ({
       ...current,
-      photos: current.photos.filter(
-        (photo) =>
-          !(
-            photo.machineId === machineId &&
-            photo.kind === "machine" &&
-            photo.previewUrl === previewUrl
-          )
-      ),
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        machines: vessel.machines.map((plan) => {
+          if (plan.machine.id !== machineId) return plan;
+
+          photoIdToDelete = plan.machine.machinePhotoId;
+
+          return {
+            ...plan,
+            machine: {
+              ...plan.machine,
+              machinePhotoId: undefined,
+              machinePhotoPreviewUrl: undefined,
+              machinePhotoRemoteId: undefined,
+              machinePhotoBlobStored: false,
+            },
+          };
+        }),
+      })),
     }));
+
+    if (photoIdToDelete) {
+      await deletePhotoBlob(photoIdToDelete);
+    }
   };
 
   const deleteTaskPhoto = (taskId: string, previewUrl: string) => {
@@ -482,9 +501,13 @@ export default function App() {
     }));
   };
 
-  const getMachinePhotoCount = (machineId: string) =>
-    fleet.photos.filter((photo) => photo.machineId === machineId && photo.kind === "machine")
-      .length;
+  const getMachinePhotoCount = (machineId: string) => {
+    const machine = fleet.vessels
+      .flatMap((vessel) => vessel.machines)
+      .find((plan) => plan.machine.id === machineId)?.machine;
+
+    return machine?.machinePhotoPreviewUrl ? 1 : 0;
+  };
 
   const getTaskPhotoCount = (taskId: string) =>
     fleet.photos.filter((photo) => photo.taskId === taskId && photo.kind === "task").length;
@@ -502,44 +525,6 @@ export default function App() {
 
     const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
     const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
-
-    const machinePhotos = fleet.photos.filter(
-      (photo) => photo.machineId === plan.machine.id && photo.kind === "machine"
-    );
-
-    const duplicatedCorrectivePhotos: CorrectivePhoto[] = [];
-
-    if (shouldCreateCorrective) {
-      for (const photo of machinePhotos) {
-        const originalBlob = await getPhotoBlob(photo.id);
-
-        if (!originalBlob) {
-          console.warn(`Machine photo blob not found for duplication: ${photo.id}`);
-          continue;
-        }
-
-        const duplicatedPhotoId = createId();
-
-        await savePhotoBlob({
-          id: duplicatedPhotoId,
-          blob: originalBlob.blob,
-          filename: originalBlob.filename,
-          mimeType: originalBlob.mimeType,
-          createdAt: new Date().toISOString(),
-        });
-
-        duplicatedCorrectivePhotos.push({
-          id: duplicatedPhotoId,
-          filename: originalBlob.filename,
-          caption: "Photo captured during preventive maintenance",
-          createdAt: new Date().toISOString(),
-          previewUrl: photo.previewUrl,
-          blobStored: true,
-        });
-      }
-    }
-
-    const machinePhotoIds = machinePhotos.map((photo) => photo.id);
 
     const taskPhotoIds = plan.tasks.flatMap((task) => task.photoIds || []);
 
@@ -564,7 +549,6 @@ export default function App() {
       failureNotes: plan.machine.failureNotes || "",
       faultCount,
       skippedCount,
-      machinePhotoIds,
       tasks: plan.tasks.map((task) => ({ ...task })),
       synced: false,
       linkedCorrectiveDraftId: correctiveDraftId,
@@ -618,7 +602,7 @@ export default function App() {
         furtherActionRequired: "",
 
         machineReturnedToService: "no",
-        photos: duplicatedCorrectivePhotos,
+        photos: [],
         synced: false,
         sourcePreventiveReportId: reportId,
       }
@@ -641,17 +625,12 @@ export default function App() {
         ? [linkedCorrectiveDraft, ...current.correctiveDrafts]
         : current.correctiveDrafts,
       photos: current.photos.map((photo) => {
-        const isMachinePhotoForThisReport =
-          photo.machineId === machineId &&
-          photo.kind === "machine" &&
-          machinePhotoIds.includes(photo.id);
-
         const isTaskPhotoForThisReport =
           photo.machineId === machineId &&
           photo.kind === "task" &&
           taskPhotoIds.includes(photo.id);
 
-        if (isMachinePhotoForThisReport || isTaskPhotoForThisReport) {
+        if (isTaskPhotoForThisReport) {
           return {
             ...photo,
             reportId,
@@ -966,13 +945,11 @@ export default function App() {
       reportProgress(onProgress, 5, `Syncing fleet data for ${report.machineTag}...`);
       await postFleetSync();
 
+      reportProgress(onProgress, 8, `Syncing machine photo for ${report.machineTag}...`);
+      await syncSharedMachinePhoto(report.machineId);
+
       reportProgress(onProgress, 10, `Sending preventive report for ${report.machineTag}...`);
       await postPreventiveReport(report);
-
-      reportProgress(onProgress, 20, `Uploading machine photos for ${report.machineTag}...`);
-      const uploadedMachinePhotos = await uploadPreventiveMachinePhotos(report, (percent, label) => {
-        reportProgress(onProgress, 20 + Math.round(percent * 0.25), label);
-      });
 
       reportProgress(onProgress, 50, `Uploading task photos for ${report.machineTag}...`);
       const uploadedTaskPhotos = await uploadPreventiveTaskPhotos(report, (percent, label) => {
@@ -980,10 +957,7 @@ export default function App() {
       });
 
       reportProgress(onProgress, 90, `Cleaning local photo data for ${report.machineTag}...`);
-      await cleanupPreventiveReportPhotos(report, {
-        ...uploadedMachinePhotos,
-        ...uploadedTaskPhotos,
-      });
+      await cleanupPreventiveReportPhotos(report, uploadedTaskPhotos);
 
       markReportSynced(reportId);
       reportProgress(onProgress, 100, `Preventive report for ${report.machineTag} synced.`);
@@ -1010,6 +984,9 @@ export default function App() {
     try {
       reportProgress(onProgress, 5, `Syncing fleet data for ${draft.machineTag}...`);
       await postFleetSync();
+
+      reportProgress(onProgress, 8, `Syncing machine photo for ${draft.machineTag}...`);
+      await syncSharedMachinePhoto(draft.machineId);
 
       reportProgress(onProgress, 10, `Sending corrective draft for ${draft.machineTag}...`);
       await postCorrectiveDraft(draft);
@@ -1082,6 +1059,9 @@ export default function App() {
     try {
       reportProgress(onProgress, 5, `Syncing fleet data for ${draft.machineTag}...`);
       await postFleetSync();
+
+      reportProgress(onProgress, 8, `Syncing machine photo for ${draft.machineTag}...`);
+      await syncSharedMachinePhoto(draft.machineId);
 
       reportProgress(onProgress, 10, `Sending CFR for ${draft.machineTag}...`);
       await postCfrDraft(draft);
@@ -1222,7 +1202,7 @@ export default function App() {
     photoId,
     onUploadProgress,
   }: {
-    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT";
+    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT" | "MACHINE_PROFILE";
     ownerId: string;
     machineId: string;
     taskId?: string;
@@ -1278,57 +1258,6 @@ export default function App() {
 
       xhr.send(formData);
     });
-  };
-
-  const uploadPreventiveMachinePhotos = async (
-    report: MaintenanceReport,
-    onProgress?: (percent: number, label: string) => void
-  ) => {
-    const machinePhotos = fleet.photos.filter(
-      (photo) =>
-        photo.reportId === report.id &&
-        photo.machineId === report.machineId &&
-        photo.kind === "machine" &&
-        report.machinePhotoIds?.includes(photo.id)
-    );
-
-    const uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }> = {};
-
-    if (machinePhotos.length === 0) {
-      onProgress?.(100, `No machine photos for ${report.machineTag}.`);
-      return uploadedPhotos;
-    }
-
-    for (let index = 0; index < machinePhotos.length; index += 1) {
-      const photo = machinePhotos[index];
-
-      const uploaded = await uploadPhotoRecord({
-        ownerType: "PREVENTIVE_MACHINE",
-        ownerId: report.id,
-        machineId: report.machineId,
-        caption: "Machine identification photo",
-        photoId: photo.id,
-        onUploadProgress: (uploadPercent) => {
-          const fileStart = (index / machinePhotos.length) * 100;
-          const fileSpan = 100 / machinePhotos.length;
-          const overallPercent = Math.round(
-            fileStart + (uploadPercent / 100) * fileSpan
-          );
-
-          onProgress?.(
-            overallPercent,
-            `Uploading machine photo ${index + 1} of ${machinePhotos.length} for ${report.machineTag}...`
-          );
-        },
-      });
-
-      uploadedPhotos[photo.id] = {
-        remotePhotoId: uploaded.id,
-        previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
-      };
-    }
-
-    return uploadedPhotos;
   };
 
   const uploadPreventiveTaskPhotos = async (
@@ -1605,7 +1534,7 @@ export default function App() {
     const shouldAutoSync =
       fleet.vessels.length === 0 &&
       fleet.reports.length === 0 &&
-      fleet.correctiveDrafts.length === 0;
+      fleet.correctiveDrafts.length === 0 &&
       fleet.cfrDrafts.length === 0;
 
     if (!shouldAutoSync) return;
@@ -1676,6 +1605,50 @@ export default function App() {
 
   const getCfrDraftByMachine = (machineId: string) => {
     return fleet.cfrDrafts.find((item) => item.machineId === machineId) || null;
+  };
+
+  const syncSharedMachinePhoto = async (machineId: string) => {
+    const machinePlan = fleet.vessels
+      .flatMap((vessel) => vessel.machines)
+      .find((plan) => plan.machine.id === machineId);
+
+    const machine = machinePlan?.machine;
+
+    if (!machine?.machinePhotoId || !machine.machinePhotoBlobStored) {
+      return null;
+    }
+
+    const uploaded = await uploadPhotoRecord({
+      ownerType: "MACHINE_PROFILE",
+      ownerId: machineId,
+      machineId,
+      caption: "Machine identification photo",
+      photoId: machine.machinePhotoId,
+    });
+
+    await deletePhotoBlob(machine.machinePhotoId);
+
+    setFleet((current) => ({
+      ...current,
+      vessels: current.vessels.map((vessel) => ({
+        ...vessel,
+        machines: vessel.machines.map((plan) =>
+          plan.machine.id === machineId
+            ? {
+              ...plan,
+              machine: {
+                ...plan.machine,
+                machinePhotoRemoteId: uploaded.id,
+                machinePhotoPreviewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+                machinePhotoBlobStored: false,
+              },
+            }
+            : plan
+        ),
+      })),
+    }));
+
+    return uploaded;
   };
 
 
@@ -1810,6 +1783,8 @@ export default function App() {
               onSaveDraft={saveCorrectiveDraft}
               onDeleteDraft={deleteCorrectiveDraft}
               getExistingDraft={getCorrectiveDraftByMachine}
+              onAddMachinePhoto={addMachinePhoto}
+              onDeleteMachinePhoto={deleteMachinePhoto}
             />
           }
         />
@@ -1822,6 +1797,8 @@ export default function App() {
               onSaveDraft={saveCfrDraft}
               onDeleteDraft={deleteCfrDraft}
               getExistingDraft={getCfrDraftByMachine}
+              onAddMachinePhoto={addMachinePhoto}
+              onDeleteMachinePhoto={deleteMachinePhoto}
             />
           }
         />

@@ -2,50 +2,20 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
+import { MachineHeader } from "../components/MachineHeader";
+import { MachinePhotoSection } from "../components/MachinePhotoSection";
 import {
   type CorrectivePhoto,
   type FailureCode,
   type FailureComponent,
   type FailureMode,
   type Vessel,
+  type CfrDraft,
 } from "../types/maintenance";
 import { createId } from "../utils/createId";
 import { compressImageFile } from "../utils/imageCompression";
 import { deletePhotoBlob, savePhotoBlob } from "../storage/photoDb";
 
-export type CfrDraft = {
-  id: string;
-  vesselId: string;
-  vesselName: string;
-  machineId: string;
-  machineTag: string;
-  machineModel: string;
-  machineType: string;
-  machineStarterType: string;
-  machineLocation: string;
-  createdAt: string;
-
-  machineStatus: "online" | "down";
-  reportCategory: "cfr";
-
-  failureComponent?: FailureComponent;
-  failureMode?: FailureMode;
-  failureCode?: FailureCode;
-
-  conditionFound: string;
-  symptomsObserved: string;
-  alarmsObserved: string;
-  operationalImpact: string;
-
-  preliminaryDiagnosis: string;
-  confirmedCause: string;
-
-  recommendations: string;
-  furtherActionRequired: string;
-
-  photos: CorrectivePhoto[];
-  synced?: boolean;
-};
 
 const failureComponents: FailureComponent[] = [
   "Compressor",
@@ -103,6 +73,8 @@ type Props = {
   onSaveDraft: (draft: CfrDraft) => void;
   onDeleteDraft: (draftId: string) => void;
   getExistingDraft: (machineId: string) => CfrDraft | null;
+  onAddMachinePhoto: (machineId: string, file: File) => void;
+  onDeleteMachinePhoto: (machineId: string) => void;
 };
 
 export function CfrReportPage({
@@ -110,6 +82,8 @@ export function CfrReportPage({
   onSaveDraft,
   onDeleteDraft,
   getExistingDraft,
+  onAddMachinePhoto,
+  onDeleteMachinePhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
 
@@ -167,7 +141,11 @@ export function CfrReportPage({
 
   const isMachineDown = draft.machineStatus === "down";
 
-  const updateField = <K extends keyof CfrDraft>(field: K, value: CfrDraft[K]) => {
+
+  const updateField = <K extends keyof CfrDraft>(
+    field: K,
+    value: CfrDraft[K]
+  ) => {
     setDraft((current) => (current ? { ...current, [field]: value } : current));
   };
 
@@ -176,16 +154,16 @@ export function CfrReportPage({
       setDraft((current) =>
         current
           ? {
-              ...current,
-              machineStatus: "online",
-              failureComponent: undefined,
-              failureMode: undefined,
-              failureCode: undefined,
-              symptomsObserved: "",
-              operationalImpact: "",
-              preliminaryDiagnosis: "",
-              confirmedCause: "",
-            }
+            ...current,
+            machineStatus: "online",
+            failureComponent: undefined,
+            failureMode: undefined,
+            failureCode: undefined,
+            symptomsObserved: "",
+            operationalImpact: "",
+            preliminaryDiagnosis: "",
+            confirmedCause: "",
+          }
           : current
       );
       return;
@@ -194,9 +172,9 @@ export function CfrReportPage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            machineStatus: "down",
-          }
+          ...current,
+          machineStatus: "down",
+        }
         : current
     );
   };
@@ -232,9 +210,9 @@ export function CfrReportPage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            photos: [...current.photos, photo],
-          }
+          ...current,
+          photos: [...current.photos, photo],
+        }
         : current
     );
   };
@@ -243,11 +221,11 @@ export function CfrReportPage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            photos: current.photos.map((photo) =>
-              photo.id === photoId ? { ...photo, caption } : photo
-            ),
-          }
+          ...current,
+          photos: current.photos.map((photo) =>
+            photo.id === photoId ? { ...photo, caption } : photo
+          ),
+        }
         : current
     );
   };
@@ -256,17 +234,29 @@ export function CfrReportPage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            photos: current.photos.filter((photo) => photo.id !== photoId),
-          }
+          ...current,
+          photos: current.photos.filter((photo) => photo.id !== photoId),
+        }
         : current
     );
 
     await deletePhotoBlob(photoId);
   };
 
+  const machinePhotoUrls = plan.machine.machinePhotoPreviewUrl
+    ? [plan.machine.machinePhotoPreviewUrl]
+    : [];
+
+  const machinePhotoCount = machinePhotoUrls.length;
+  const machinePhotoValid = machinePhotoCount > 0;
+
   const saveDraftLocally = () => {
-    onSaveDraft({ ...draft, reportCategory: "cfr", synced: false });
+    onSaveDraft({
+      ...draft,
+      reportCategory: "cfr",
+      synced: false,
+    });
+
     alert("CFR saved locally.");
     setDraft(createEmptyDraft());
   };
@@ -279,17 +269,19 @@ export function CfrReportPage({
   const deleteLocalDraft = () => {
     const confirmed = window.confirm("Delete this local CFR?");
     if (!confirmed) return;
+
     clearCurrentDraft();
   };
 
   const canSaveDraft = isMachineDown
     ? Boolean(
-        draft.failureComponent &&
-          draft.failureMode &&
-          draft.failureCode &&
-          draft.conditionFound.trim()
-      )
-    : Boolean(draft.conditionFound.trim());
+      machinePhotoValid &&
+      draft.failureComponent &&
+      draft.failureMode &&
+      draft.failureCode &&
+      draft.conditionFound.trim()
+    )
+    : Boolean(machinePhotoValid && draft.conditionFound.trim());
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
@@ -305,36 +297,21 @@ export function CfrReportPage({
           </p>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Machine</h2>
+        <MachineHeader machine={plan.machine} />
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Ship</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.vesselName}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Tag</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.machineTag}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Location</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.machineLocation}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Model</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.machineModel} · {draft.machineStarterType}
-              </div>
-            </div>
-          </div>
-        </section>
+        <MachinePhotoSection
+          label="Machine Picture"
+          required
+          count={machinePhotoCount}
+          previewUrls={machinePhotoUrls}
+          onDeletePhoto={() => onDeleteMachinePhoto(plan.machine.id)}
+          onPick={(file) => onAddMachinePhoto(plan.machine.id, file)}
+        />
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Machine Status</h2>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Machine Status
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
             Select whether the machine was online or down during the onboard assessment.
           </p>
@@ -343,11 +320,10 @@ export function CfrReportPage({
             <button
               type="button"
               onClick={() => updateMachineStatus("online")}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${
-                !isMachineDown
-                  ? "bg-green-100 text-green-800 ring-green-200"
-                  : "bg-white text-slate-700 ring-slate-300"
-              }`}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${!isMachineDown
+                ? "bg-green-100 text-green-800 ring-green-200"
+                : "bg-white text-slate-700 ring-slate-300"
+                }`}
             >
               Online
             </button>
@@ -355,11 +331,10 @@ export function CfrReportPage({
             <button
               type="button"
               onClick={() => updateMachineStatus("down")}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${
-                isMachineDown
-                  ? "bg-red-100 text-red-800 ring-red-200"
-                  : "bg-white text-slate-700 ring-slate-300"
-              }`}
+              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${isMachineDown
+                ? "bg-red-100 text-red-800 ring-red-200"
+                : "bg-white text-slate-700 ring-slate-300"
+                }`}
             >
               Down
             </button>
@@ -440,7 +415,9 @@ export function CfrReportPage({
         ) : null}
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Condition Found</h2>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Condition Found
+          </h2>
 
           <div className="mt-4 space-y-3">
             <label className="block">
@@ -464,7 +441,9 @@ export function CfrReportPage({
                   </span>
                   <textarea
                     value={draft.symptomsObserved}
-                    onChange={(e) => updateField("symptomsObserved", e.target.value)}
+                    onChange={(e) =>
+                      updateField("symptomsObserved", e.target.value)
+                    }
                     rows={4}
                     className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
                     placeholder="Noise, vibration, trip, leakage, overheating..."
@@ -493,7 +472,9 @@ export function CfrReportPage({
                 </span>
                 <textarea
                   value={draft.operationalImpact}
-                  onChange={(e) => updateField("operationalImpact", e.target.value)}
+                  onChange={(e) =>
+                    updateField("operationalImpact", e.target.value)
+                  }
                   rows={3}
                   className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
                   placeholder="How the fault affected operation."
@@ -503,16 +484,11 @@ export function CfrReportPage({
           </div>
         </section>
 
-        <CorrectivePhotosSection
-          photos={draft.photos}
-          onAddPhoto={addPhoto}
-          onUpdateCaption={updatePhotoCaption}
-          onDeletePhoto={deletePhoto}
-        />
-
         {isMachineDown ? (
           <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">Diagnosis</h2>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Diagnosis
+            </h2>
 
             <div className="mt-4 space-y-3">
               <label className="block">
@@ -521,7 +497,9 @@ export function CfrReportPage({
                 </span>
                 <textarea
                   value={draft.preliminaryDiagnosis}
-                  onChange={(e) => updateField("preliminaryDiagnosis", e.target.value)}
+                  onChange={(e) =>
+                    updateField("preliminaryDiagnosis", e.target.value)
+                  }
                   rows={4}
                   className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
                   placeholder="What you believe caused the issue."
@@ -545,7 +523,9 @@ export function CfrReportPage({
         ) : null}
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Recommendations</h2>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Recommendations
+          </h2>
 
           <div className="mt-4 space-y-3">
             <label className="block">
@@ -567,7 +547,9 @@ export function CfrReportPage({
               </span>
               <textarea
                 value={draft.furtherActionRequired}
-                onChange={(e) => updateField("furtherActionRequired", e.target.value)}
+                onChange={(e) =>
+                  updateField("furtherActionRequired", e.target.value)
+                }
                 rows={3}
                 className="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-md outline-none"
                 placeholder="Parts required, follow-up visit, drydock, shutdown, etc."
@@ -576,11 +558,24 @@ export function CfrReportPage({
           </div>
         </section>
 
+        <CorrectivePhotosSection
+          photos={draft.photos}
+          onAddPhoto={addPhoto}
+          onUpdateCaption={updatePhotoCaption}
+          onDeletePhoto={deletePhoto}
+        />
+
+        {!machinePhotoValid ? (
+          <p className="text-sm text-red-600">
+            A machine identification photo is required before saving this CFR.
+          </p>
+        ) : null}
+
         {!canSaveDraft ? (
           <p className="text-sm text-red-600">
             {isMachineDown
-              ? "Failure component, failure mode, failure code, and condition found are required."
-              : "Condition found is required."}
+              ? "Machine photo, failure component, failure mode, failure code, and condition found are required."
+              : "Machine photo and condition found are required."}
           </p>
         ) : null}
 
@@ -589,11 +584,10 @@ export function CfrReportPage({
             type="button"
             onClick={saveDraftLocally}
             disabled={!canSaveDraft}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium ${
-              canSaveDraft
-                ? "bg-white text-slate-700 ring-1 ring-slate-300"
-                : "bg-slate-200 text-slate-400"
-            }`}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium ${canSaveDraft
+              ? "bg-white text-slate-700 ring-1 ring-slate-300"
+              : "bg-slate-200 text-slate-400"
+              }`}
           >
             Save draft locally
           </button>

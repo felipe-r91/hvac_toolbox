@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
+import { MachineHeader } from "../components/MachineHeader";
 import {
   type CorrectiveDraft,
   type CorrectivePhoto,
@@ -13,6 +14,7 @@ import {
 import { createId } from "../utils/createId";
 import { compressImageFile } from "../utils/imageCompression";
 import { deletePhotoBlob, savePhotoBlob } from "../storage/photoDb";
+import { MachinePhotoSection } from "../components/MachinePhotoSection";
 
 const failureComponents: FailureComponent[] = [
   "Compressor",
@@ -67,9 +69,11 @@ const failureCodes: { value: FailureCode; label: string }[] = [
 
 type Props = {
   vessels: Vessel[];
-  onSaveDraft: (draft: CorrectiveDraft) => void;
+  onSaveDraft: (draft: CorrectiveDraft) => void; // or CorrectiveDraft
   onDeleteDraft: (draftId: string) => void;
-  getExistingDraft: (machineId: string) => CorrectiveDraft | null;
+  getExistingDraft: (machineId: string) => CorrectiveDraft | null; // or CorrectiveDraft | null
+  onAddMachinePhoto: (machineId: string, file: File) => void;
+  onDeleteMachinePhoto: (machineId: string) => void;
 };
 
 export function CorrectiveMaintenancePage({
@@ -77,6 +81,8 @@ export function CorrectiveMaintenancePage({
   onSaveDraft,
   onDeleteDraft,
   getExistingDraft,
+  onAddMachinePhoto,
+  onDeleteMachinePhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
 
@@ -174,9 +180,9 @@ export function CorrectiveMaintenancePage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            photos: [...current.photos, photo],
-          }
+          ...current,
+          photos: [...current.photos, photo],
+        }
         : current
     );
   };
@@ -185,11 +191,11 @@ export function CorrectiveMaintenancePage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            photos: current.photos.map((photo) =>
-              photo.id === photoId ? { ...photo, caption } : photo
-            ),
-          }
+          ...current,
+          photos: current.photos.map((photo) =>
+            photo.id === photoId ? { ...photo, caption } : photo
+          ),
+        }
         : current
     );
   };
@@ -198,23 +204,29 @@ export function CorrectiveMaintenancePage({
     setDraft((current) =>
       current
         ? {
-            ...current,
-            photos: current.photos.filter((photo) => photo.id !== photoId),
-          }
+          ...current,
+          photos: current.photos.filter((photo) => photo.id !== photoId),
+        }
         : current
     );
 
     await deletePhotoBlob(photoId);
   };
 
+  const machinePhotoUrls = plan.machine.machinePhotoPreviewUrl
+    ? [plan.machine.machinePhotoPreviewUrl]
+    : [];
+
+  const machinePhotoCount = machinePhotoUrls.length;
+  const machinePhotoValid = machinePhotoCount > 0;
+
   const saveDraftLocally = () => {
-    const payload: CorrectiveDraft = {
+    onSaveDraft({
       ...draft,
       reportCategory: "corrective",
       synced: false,
-    };
+    });
 
-    onSaveDraft(payload);
     alert("Corrective report saved locally.");
     setDraft(createEmptyDraft());
   };
@@ -232,12 +244,13 @@ export function CorrectiveMaintenancePage({
   };
 
   const canSaveDraft = Boolean(
+    machinePhotoValid &&
     draft.failureComponent &&
-      draft.failureMode &&
-      draft.failureCode &&
-      draft.problemSummary.trim() &&
-      draft.conditionFound.trim() &&
-      draft.correctiveAction.trim()
+    draft.failureMode &&
+    draft.failureCode &&
+    draft.problemSummary.trim() &&
+    draft.conditionFound.trim() &&
+    draft.correctiveAction.trim()
   );
 
   return (
@@ -254,35 +267,16 @@ export function CorrectiveMaintenancePage({
           </p>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Machine</h2>
+        <MachineHeader machine={plan.machine} />
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Ship</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.vesselName}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Tag</div>
-              <div className="mt-1 text-sm text-slate-900">{draft.machineTag}</div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Location</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.machineLocation}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-              <div className="text-xs font-medium text-slate-500">Model</div>
-              <div className="mt-1 text-sm text-slate-900">
-                {draft.machineModel} · {draft.machineStarterType}
-              </div>
-            </div>
-          </div>
-        </section>
+        <MachinePhotoSection
+          label="Machine Picture"
+          required
+          count={machinePhotoCount}
+          previewUrls={machinePhotoUrls}
+          onDeletePhoto={() => onDeleteMachinePhoto(plan.machine.id)}
+          onPick={(file) => onAddMachinePhoto(plan.machine.id, file)}
+        />
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">
@@ -431,13 +425,6 @@ export function CorrectiveMaintenancePage({
           </div>
         </section>
 
-        <CorrectivePhotosSection
-          photos={draft.photos}
-          onAddPhoto={addPhoto}
-          onUpdateCaption={updatePhotoCaption}
-          onDeletePhoto={deletePhoto}
-        />
-
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Diagnosis</h2>
 
@@ -539,9 +526,21 @@ export function CorrectiveMaintenancePage({
           </div>
         </section>
 
+        <CorrectivePhotosSection
+          photos={draft.photos}
+          onAddPhoto={addPhoto}
+          onUpdateCaption={updatePhotoCaption}
+          onDeletePhoto={deletePhoto}
+        />
+
         {!canSaveDraft ? (
           <p className="text-sm text-red-600">
             Failure component, failure mode, failure code, problem summary, condition found, and corrective action performed are required.
+          </p>
+        ) : null}
+        {!machinePhotoValid ? (
+          <p className="text-sm text-red-600">
+            A machine identification photo is required before saving this report.
           </p>
         ) : null}
 
@@ -550,11 +549,10 @@ export function CorrectiveMaintenancePage({
             type="button"
             onClick={saveDraftLocally}
             disabled={!canSaveDraft}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium ${
-              canSaveDraft
-                ? "bg-white text-slate-700 ring-1 ring-slate-300"
-                : "bg-slate-200 text-slate-400"
-            }`}
+            className={`rounded-2xl px-4 py-3 text-sm font-medium ${canSaveDraft
+              ? "bg-white text-slate-700 ring-1 ring-slate-300"
+              : "bg-slate-200 text-slate-400"
+              }`}
           >
             Save draft locally
           </button>

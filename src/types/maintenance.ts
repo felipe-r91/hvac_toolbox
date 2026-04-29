@@ -68,6 +68,10 @@ export type MachineMeta = {
   failureMode?: FailureMode;
   failureCode?: FailureCode;
   failureNotes?: string;
+  machinePhotoId?: string;
+  machinePhotoPreviewUrl?: string;
+  machinePhotoRemoteId?: string;
+  machinePhotoBlobStored?: boolean;
 };
 
 export type MaintenanceTask = {
@@ -215,6 +219,7 @@ export type CorrectiveDraft = {
 export type UploadedPhotoRecord = {
   id: string;
   ownerType:
+    | "MACHINE_PROFILE"
     | "CORRECTIVE_DRAFT"
     | "PREVENTIVE_MACHINE"
     | "PREVENTIVE_TASK"
