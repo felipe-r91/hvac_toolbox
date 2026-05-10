@@ -52,7 +52,7 @@ export type FailureMode =
   | "other";
 
 
-export type ReportCategory = "health_check" | "corrective" | "cfr";
+export type ReportCategory = "health_check" | "corrective" | "cfr" | "daily";
 
 export type MachineMeta = {
   id: string;
@@ -150,6 +150,7 @@ export type FleetData = {
   photos: PhotoRecord[];
   correctiveDrafts: CorrectiveDraft[];
   cfrDrafts: CfrDraft[];
+  dailyDrafts: DailyDraft[];
 };
 
 export type PhotoRecord = {
@@ -223,7 +224,8 @@ export type UploadedPhotoRecord = {
     | "CORRECTIVE_DRAFT"
     | "PREVENTIVE_MACHINE"
     | "PREVENTIVE_TASK"
-    | "CFR_DRAFT";
+    | "CFR_DRAFT"
+    | "DAILY_DRAFT";
   ownerId: string;
   machineId: string;
   taskId?: string;
@@ -312,5 +314,31 @@ export type CfrDraft = {
   furtherActionRequired: string;
 
   photos: CorrectivePhoto[];
+  synced?: boolean;
+};
+
+export type DailyDraft = {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  machineId: string;
+  machineTag: string;
+  machineModel: string;
+  machineType: string;
+  machineStarterType: string;
+  machineLocation: string;
+  createdAt: string;
+
+  alarmPresent: boolean;
+  reportCategory: "daily";
+
+  failureComponent?: FailureComponent;
+  failureMode?: FailureMode;
+  failureCode?: FailureCode;
+  failureNotes: string;
+
+  workConductedToday: string;
+  furtherActions: string;
+
   synced?: boolean;
 };

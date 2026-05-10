@@ -110,6 +110,16 @@ export function ShipMachinesPage({ vessels }: Props) {
           setModalOpen(false);
           setSelectedMachine(null);
         }}
+        onChooseDaily={() => {
+          if (!selectedMachine) return;
+
+          navigate(
+            `/vessels/${selectedMachine.vesselId}/machines/${selectedMachine.machineId}/daily`
+          );
+
+          setModalOpen(false);
+          setSelectedMachine(null);
+        }}
       />
     </main>
   );

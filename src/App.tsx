@@ -16,6 +16,7 @@ import {
   type FleetSyncPayload,
   type FinishMaintenanceResult,
   type CfrDraft,
+  type DailyDraft,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -44,6 +45,8 @@ import {
 } from "./storage/offlineSyncStorage";
 import { resolvePhotoUrl } from "./utils/photoUrl";
 import { CfrReportDetailPage } from "./pages/CfrReportDetailPage";
+import { DailyReportPage } from "./pages/DailyReportPage";
+import { DailyReportDetailPage } from "./pages/DailyReportDetailPage";
 
 function MachineDetailRoute({
   fleet,
@@ -235,6 +238,7 @@ export default function App() {
         (draft) => draft.vesselId !== vesselId
       ),
       cfrDrafts: current.cfrDrafts.filter((draft) => draft.vesselId !== vesselId),
+      dailyDrafts: current.dailyDrafts.filter((draft) => draft.vesselId !== vesselId),
       photos: current.photos.filter((photo) => {
         const vessel = current.vessels.find((item) => item.id === vesselId);
         const machineIds = vessel?.machines.map((plan) => plan.machine.id) || [];
@@ -761,6 +765,9 @@ export default function App() {
       cfrDrafts: current.cfrDrafts.filter(
         (draft) => draft.machineId !== payload.machineId
       ),
+      dailyDrafts: current.dailyDrafts.filter(
+        (draft) => draft.machineId !== payload.machineId
+      ),
       photos: current.photos.filter((photo) => photo.machineId !== payload.machineId),
     }));
   };
@@ -831,6 +838,15 @@ export default function App() {
     }));
   };
 
+  const markDailyDraftSynced = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      dailyDrafts: current.dailyDrafts.map((draft) =>
+        draft.id === draftId ? { ...draft, synced: true } : draft
+      ),
+    }));
+  };
+
   const deletePreventiveReport = (reportId: string) => {
     setFleet((current) => ({
       ...current,
@@ -846,11 +862,13 @@ export default function App() {
       (item) => !item.synced
     );
     const pendingCfrDrafts = fleet.cfrDrafts.filter((item) => !item.synced);
+    const pendingDailyDrafts = fleet.dailyDrafts.filter((item) => !item.synced);
 
     const totalItems =
       pendingReports.length +
       pendingCorrectiveDrafts.length +
-      pendingCfrDrafts.length;
+      pendingCfrDrafts.length +
+      pendingDailyDrafts.length;
 
     try {
       reportProgress(onProgress, 5, "Syncing fleet master data...");
@@ -904,6 +922,25 @@ export default function App() {
 
       for (const draft of pendingCfrDrafts) {
         await syncCfrDraft(draft.id, (info) => {
+          const itemBase = completedItems / totalItems;
+          const itemWeight = 1 / totalItems;
+          const overallPercent = Math.round(
+            10 + (itemBase + (info.percent / 100) * itemWeight) * 90
+          );
+
+          reportProgress(onProgress, overallPercent, info.label);
+        });
+
+        completedItems += 1;
+        reportProgress(
+          onProgress,
+          Math.round(10 + (completedItems / totalItems) * 90),
+          `Completed ${completedItems} of ${totalItems} items...`
+        );
+      }
+
+      for (const draft of pendingDailyDrafts) {
+        await syncDailyDraft(draft.id, (info) => {
           const itemBase = completedItems / totalItems;
           const itemWeight = 1 / totalItems;
           const overallPercent = Math.round(
@@ -1120,6 +1157,38 @@ export default function App() {
     }
   };
 
+  const syncDailyDraft = async (
+    draftId: string,
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const draft = fleet.dailyDrafts.find((item) => item.id === draftId);
+
+    if (!draft) {
+      alert("Daily report not found.");
+      return;
+    }
+
+    try {
+      reportProgress(onProgress, 5, `Syncing fleet data for ${draft.machineTag}...`);
+      await postFleetSync();
+
+      reportProgress(onProgress, 35, `Syncing machine photo for ${draft.machineTag}...`);
+      await syncSharedMachinePhoto(draft.machineId);
+
+      reportProgress(onProgress, 70, `Sending daily report for ${draft.machineTag}...`);
+      await postDailyDraft(draft);
+
+      markDailyDraftSynced(draftId);
+      reportProgress(onProgress, 100, `Daily report for ${draft.machineTag} synced.`);
+
+      alert("Daily report synced successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync daily report.");
+      throw error;
+    }
+  };
+
   const postCorrectiveDraft = async (draft: CorrectiveDraft) => {
     const payload = {
       ...draft,
@@ -1193,6 +1262,23 @@ export default function App() {
     return response.json();
   };
 
+  const postDailyDraft = async (draft: DailyDraft) => {
+    const response = await fetch(`${API_BASE_URL}/api/sync/daily`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(draft),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Daily report sync failed: ${text}`);
+    }
+
+    return response.json();
+  };
+
   const uploadPhotoRecord = async ({
     ownerType,
     ownerId,
@@ -1202,7 +1288,7 @@ export default function App() {
     photoId,
     onUploadProgress,
   }: {
-    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT" | "MACHINE_PROFILE";
+    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT" | "DAILY_DRAFT" | "MACHINE_PROFILE";
     ownerId: string;
     machineId: string;
     taskId?: string;
@@ -1535,7 +1621,8 @@ export default function App() {
       fleet.vessels.length === 0 &&
       fleet.reports.length === 0 &&
       fleet.correctiveDrafts.length === 0 &&
-      fleet.cfrDrafts.length === 0;
+      fleet.cfrDrafts.length === 0 &&
+      fleet.dailyDrafts.length === 0;
 
     if (!shouldAutoSync) return;
 
@@ -1605,6 +1692,36 @@ export default function App() {
 
   const getCfrDraftByMachine = (machineId: string) => {
     return fleet.cfrDrafts.find((item) => item.machineId === machineId) || null;
+  };
+
+  const saveDailyDraft = (draft: DailyDraft) => {
+    const payload = {
+      ...draft,
+      synced: false,
+      reportCategory: "daily" as const,
+    };
+
+    setFleet((current) => {
+      const existing = current.dailyDrafts.find((item) => item.id === payload.id);
+
+      return {
+        ...current,
+        dailyDrafts: existing
+          ? current.dailyDrafts.map((item) => (item.id === payload.id ? payload : item))
+          : [payload, ...current.dailyDrafts],
+      };
+    });
+  };
+
+  const deleteDailyDraft = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      dailyDrafts: current.dailyDrafts.filter((item) => item.id !== draftId),
+    }));
+  };
+
+  const getDailyDraftByMachine = (machineId: string) => {
+    return fleet.dailyDrafts.find((item) => item.machineId === machineId) || null;
   };
 
   const syncSharedMachinePhoto = async (machineId: string) => {
@@ -1706,13 +1823,16 @@ export default function App() {
               reports={fleet.reports}
               correctiveDrafts={fleet.correctiveDrafts}
               cfrDrafts={fleet.cfrDrafts}
+              dailyDrafts={fleet.dailyDrafts}
               onSyncAll={syncAllPendingItems}
               onSyncReport={syncPreventiveReport}
               onSyncCorrectiveDraft={syncCorrectiveDraft}
               onSyncCfrDraft={syncCfrDraft}
+              onSyncDailyDraft={syncDailyDraft}
               onDeleteReport={deletePreventiveReport}
               onDeleteCorrectiveDraft={deleteCorrectiveDraft}
               onDeleteCfrDraft={deleteCfrDraft}
+              onDeleteDailyDraft={deleteDailyDraft}
               onSyncOfflineRegistry={syncOfflineRegistry}
               fleetSyncLoading={fleetSyncLoading}
               fleetSyncError={fleetSyncError}
@@ -1734,6 +1854,7 @@ export default function App() {
               reports={fleet.reports}
               correctiveDrafts={fleet.correctiveDrafts}
               cfrDrafts={fleet.cfrDrafts}
+              dailyDrafts={fleet.dailyDrafts}
             />
           }
         />
@@ -1804,6 +1925,20 @@ export default function App() {
         />
 
         <Route
+          path="/vessels/:vesselId/machines/:machineId/daily"
+          element={
+            <DailyReportPage
+              vessels={fleet.vessels}
+              onSaveDraft={saveDailyDraft}
+              onDeleteDraft={deleteDailyDraft}
+              getExistingDraft={getDailyDraftByMachine}
+              onAddMachinePhoto={addMachinePhoto}
+              onDeleteMachinePhoto={deleteMachinePhoto}
+            />
+          }
+        />
+
+        <Route
           path="/cfr-reports/:draftId"
           element={<CfrReportDetailPage cfrDrafts={fleet.cfrDrafts} />}
         />
@@ -1811,6 +1946,11 @@ export default function App() {
         <Route
           path="/corrective-reports/:draftId"
           element={<CorrectiveReportDetailPage correctiveDrafts={fleet.correctiveDrafts} />}
+        />
+
+        <Route
+          path="/daily-reports/:draftId"
+          element={<DailyReportDetailPage dailyDrafts={fleet.dailyDrafts} />}
         />
 
         <Route

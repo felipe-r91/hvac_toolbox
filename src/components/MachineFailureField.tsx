@@ -56,6 +56,7 @@ const failureCodes: { value: FailureCode; label: string }[] = [
 ];
 
 type Props = {
+  title?: string;
   operatingStatus: "online" | "down";
   failureComponent: string;
   failureMode: string;
@@ -68,6 +69,7 @@ type Props = {
 };
 
 export function MachineFailureField({
+  title = "Failure detected during maintenance",
   operatingStatus,
   failureComponent,
   failureMode,
@@ -83,7 +85,7 @@ export function MachineFailureField({
   return (
     <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
       <h2 className="text-lg font-semibold text-slate-900">
-        Failure detected during maintenance
+        {title}
       </h2>
       <p className="mt-1 text-sm text-slate-500">
         Classify the failure using structured fields so the office app can track recurring issues.

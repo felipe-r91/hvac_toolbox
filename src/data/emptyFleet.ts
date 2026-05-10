@@ -6,4 +6,5 @@ export const emptyFleet: FleetData = {
   photos: [],
   correctiveDrafts: [],
   cfrDrafts: [],
+  dailyDrafts: [],
 };

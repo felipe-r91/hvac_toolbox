@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import {
   type CfrDraft,
   type CorrectiveDraft,
+  type DailyDraft,
   type MaintenanceReport,
   type ReportCategory,
   type Vessel,
@@ -13,6 +14,7 @@ type Props = {
   reports: MaintenanceReport[];
   correctiveDrafts: CorrectiveDraft[];
   cfrDrafts: CfrDraft[];
+  dailyDrafts: DailyDraft[];
 };
 
 function statusBadge(status: "online" | "down") {
@@ -29,6 +31,8 @@ function reportCategoryBadge(category: ReportCategory) {
       return "bg-yellow-100 text-yellow-800";
     case "cfr":
       return "bg-purple-100 text-purple-800";
+    case "daily":
+      return "bg-teal-100 text-teal-800";
     default:
       return "bg-slate-100 text-slate-700";
   }
@@ -42,6 +46,8 @@ function reportCategoryLabel(category: ReportCategory) {
       return "Corrective";
     case "cfr":
       return "CFR";
+    case "daily":
+      return "Daily";
     default:
       return category;
   }
@@ -74,6 +80,15 @@ type MachineHistoryItem =
       status: "online" | "down";
       label: string;
       cfrDraft: CfrDraft;
+    }
+  | {
+      id: string;
+      source: "daily_draft";
+      reportCategory: "daily";
+      date: string;
+      status: "online" | "down";
+      label: string;
+      dailyDraft: DailyDraft;
     };
 
 export function ReportsPage({
@@ -81,6 +96,7 @@ export function ReportsPage({
   reports,
   correctiveDrafts,
   cfrDrafts,
+  dailyDrafts,
 }: Props) {
   return (
     <section className="space-y-4">
@@ -107,10 +123,15 @@ export function ReportsPage({
             (draft) => draft.vesselId === vessel.id
           );
 
+          const vesselDailyDrafts = dailyDrafts.filter(
+            (draft) => draft.vesselId === vessel.id
+          );
+
           const vesselHistoryCount =
             vesselPreventiveReports.length +
             vesselCorrectiveDrafts.length +
-            vesselCfrDrafts.length;
+            vesselCfrDrafts.length +
+            vesselDailyDrafts.length;
 
           return (
             <details
@@ -178,10 +199,25 @@ export function ReportsPage({
                       })
                     );
 
+                  const machineDailyDrafts = vesselDailyDrafts
+                    .filter((draft) => draft.machineId === plan.machine.id)
+                    .map(
+                      (draft): MachineHistoryItem => ({
+                        id: draft.id,
+                        source: "daily_draft",
+                        reportCategory: "daily",
+                        date: draft.createdAt,
+                        status: draft.alarmPresent ? "down" : "online",
+                        label: new Date(draft.createdAt).toLocaleString(),
+                        dailyDraft: draft,
+                      })
+                    );
+
                   const machineHistory = [
                     ...machinePreventiveReports,
                     ...machineCorrectiveDrafts,
                     ...machineCfrDrafts,
+                    ...machineDailyDrafts,
                   ].sort(
                     (a, b) =>
                       new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -258,6 +294,34 @@ export function ReportsPage({
                                       <div className="mt-1 text-xs text-slate-500">
                                         {item.correctiveDraft.problemSummary ||
                                           "Corrective report"}
+                                      </div>
+                                    </div>
+
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${reportCategoryBadge(
+                                        item.reportCategory
+                                      )}`}
+                                    >
+                                      {reportCategoryLabel(item.reportCategory)}
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            }
+
+                            if (item.source === "daily_draft") {
+                              return (
+                                <Link
+                                  key={item.id}
+                                  to={`/daily-reports/${item.id}`}
+                                  className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <div>{item.label}</div>
+                                      <div className="mt-1 text-xs text-slate-500">
+                                        {item.dailyDraft.workConductedToday ||
+                                          "Daily report"}
                                       </div>
                                     </div>
 

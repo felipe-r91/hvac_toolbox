@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   type CfrDraft,
   type CorrectiveDraft,
+  type DailyDraft,
   type MaintenanceReport,
 } from "../types/maintenance";
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
@@ -16,6 +17,7 @@ type Props = {
   reports: MaintenanceReport[];
   correctiveDrafts: CorrectiveDraft[];
   cfrDrafts: CfrDraft[];
+  dailyDrafts: DailyDraft[];
   onSyncAll: (onProgress: (info: SyncProgressInfo) => void) => Promise<void>;
   onSyncReport: (
     reportId: string,
@@ -29,9 +31,14 @@ type Props = {
     draftId: string,
     onProgress: (info: SyncProgressInfo) => void
   ) => Promise<void>;
+  onSyncDailyDraft: (
+    draftId: string,
+    onProgress: (info: SyncProgressInfo) => void
+  ) => Promise<void>;
   onDeleteReport: (reportId: string) => void;
   onDeleteCorrectiveDraft: (draftId: string) => void;
   onDeleteCfrDraft: (draftId: string) => void;
+  onDeleteDailyDraft: (draftId: string) => void;
   onSyncOfflineRegistry: () => Promise<void>;
   fleetSyncLoading: boolean;
   fleetSyncError: string;
@@ -47,13 +54,16 @@ export function SyncPage({
   reports,
   correctiveDrafts,
   cfrDrafts,
+  dailyDrafts,
   onSyncAll,
   onSyncReport,
   onSyncCorrectiveDraft,
   onSyncCfrDraft,
+  onSyncDailyDraft,
   onDeleteReport,
   onDeleteCorrectiveDraft,
   onDeleteCfrDraft,
+  onDeleteDailyDraft,
   onSyncOfflineRegistry,
   fleetSyncLoading,
   fleetSyncError,
@@ -79,11 +89,13 @@ export function SyncPage({
   const pendingReports = reports.filter((report) => !report.synced);
   const pendingCorrectiveDrafts = correctiveDrafts.filter((draft) => !draft.synced);
   const pendingCfrDrafts = cfrDrafts.filter((draft) => !draft.synced);
+  const pendingDailyDrafts = dailyDrafts.filter((draft) => !draft.synced);
 
   const totalPending =
     pendingReports.length +
     pendingCorrectiveDrafts.length +
-    pendingCfrDrafts.length;
+    pendingCfrDrafts.length +
+    pendingDailyDrafts.length;
 
   const handleUpdateApp = async () => {
     setUpdateLoading(true);
@@ -162,6 +174,23 @@ export function SyncPage({
 
     try {
       await onSyncCfrDraft(draftId, ({ percent, label }) => {
+        setSyncProgress(percent);
+        setSyncLabel(label);
+      });
+    } finally {
+      setSyncLoading(false);
+      setSyncProgress(0);
+      setSyncLabel("");
+    }
+  };
+
+  const handleSyncDailyDraft = async (draftId: string, machineTag: string) => {
+    setSyncLoading(true);
+    setSyncProgress(0);
+    setSyncLabel(`Preparing daily report for ${machineTag}...`);
+
+    try {
+      await onSyncDailyDraft(draftId, ({ percent, label }) => {
         setSyncProgress(percent);
         setSyncLabel(label);
       });
@@ -546,6 +575,73 @@ export function SyncPage({
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
               No CFR reports pending upload.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">
+          Daily reports pending upload
+        </h2>
+
+        <div className="mt-4 space-y-3">
+          {pendingDailyDrafts.length > 0 ? (
+            pendingDailyDrafts.map((draft) => (
+              <div
+                key={draft.id}
+                className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {draft.machineTag}
+                      </h3>
+                      <span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-800">
+                        Daily
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      {draft.vesselName} · {draft.machineModel}
+                    </p>
+
+                    <p className="text-xs text-slate-400">
+                      {new Date(draft.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSyncDailyDraft(draft.id, draft.machineTag)}
+                      disabled={updateLoading || syncLoading}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
+                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                      }`}
+                    >
+                      Upload
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const confirmed = window.confirm("Delete this daily report?");
+                        if (confirmed) onDeleteDailyDraft(draft.id);
+                      }}
+                      disabled={updateLoading || syncLoading}
+                      className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
+              No daily reports pending upload.
             </div>
           )}
         </div>
