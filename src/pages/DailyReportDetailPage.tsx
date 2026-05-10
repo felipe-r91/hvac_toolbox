@@ -97,6 +97,45 @@ export function DailyReportDetailPage({ dailyDrafts }: Props) {
             <DetailBlock title="Further Actions" value={draft.furtherActions} />
           </div>
         </section>
+
+        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">Photos</h2>
+
+          {(draft.photos || []).length > 0 ? (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {(draft.photos || []).map((photo) => (
+                <div
+                  key={photo.id}
+                  className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200"
+                >
+                  {photo.previewUrl ? (
+                    <img
+                      src={photo.previewUrl}
+                      alt={photo.caption || "Daily report photo"}
+                      className="h-56 w-full rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-56 items-center justify-center rounded-2xl bg-slate-100 text-sm text-slate-400">
+                      Photo unavailable
+                    </div>
+                  )}
+
+                  <div className="mt-3 text-sm text-slate-700">
+                    {photo.caption || "No caption"}
+                  </div>
+
+                  <div className="mt-1 text-xs text-slate-400">
+                    {photo.filename}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
+              No photos attached.
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

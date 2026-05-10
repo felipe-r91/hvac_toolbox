@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
+import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
 import { MachineFailureField } from "../components/MachineFailureField";
 import { MachineHeader } from "../components/MachineHeader";
 import { MachinePhotoSection } from "../components/MachinePhotoSection";
 import {
+  type CorrectivePhoto,
   type DailyDraft,
   type FailureCode,
   type FailureComponent,
@@ -12,6 +14,8 @@ import {
   type Vessel,
 } from "../types/maintenance";
 import { createId } from "../utils/createId";
+import { compressImageFile } from "../utils/imageCompression";
+import { deletePhotoBlob, savePhotoBlob } from "../storage/photoDb";
 
 type Props = {
   vessels: Vessel[];
@@ -61,6 +65,7 @@ export function DailyReportPage({
       workConductedToday: "",
       furtherActions: "",
 
+      photos: [],
       synced: false,
     };
   };
@@ -69,7 +74,7 @@ export function DailyReportPage({
     if (!vessel || !plan || !machineId) return null;
 
     const existing = getExistingDraft(machineId);
-    if (existing) return existing;
+    if (existing) return { ...existing, photos: existing.photos || [] };
 
     return createEmptyDraft();
   });
@@ -118,6 +123,70 @@ export function DailyReportPage({
 
   const machinePhotoCount = machinePhotoUrls.length;
   const machinePhotoValid = machinePhotoCount > 0;
+
+  const addPhoto = async (file: File) => {
+    const compressedFile = await compressImageFile(file, {
+      maxWidth: 1600,
+      maxHeight: 1600,
+      quality: 0.78,
+      mimeType: "image/jpeg",
+    });
+
+    const photoId = createId();
+    const previewUrl = URL.createObjectURL(compressedFile);
+
+    await savePhotoBlob({
+      id: photoId,
+      blob: compressedFile,
+      filename: compressedFile.name,
+      mimeType: compressedFile.type,
+      createdAt: new Date().toISOString(),
+    });
+
+    const photo: CorrectivePhoto = {
+      id: photoId,
+      filename: compressedFile.name,
+      caption: "",
+      createdAt: new Date().toISOString(),
+      previewUrl,
+      blobStored: true,
+    };
+
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            photos: [...(current.photos || []), photo],
+          }
+        : current
+    );
+  };
+
+  const updatePhotoCaption = (photoId: string, caption: string) => {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            photos: (current.photos || []).map((photo) =>
+              photo.id === photoId ? { ...photo, caption } : photo
+            ),
+          }
+        : current
+    );
+  };
+
+  const deletePhoto = async (photoId: string) => {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            photos: (current.photos || []).filter((photo) => photo.id !== photoId),
+          }
+        : current
+    );
+
+    await deletePhotoBlob(photoId);
+  };
 
   const saveDraftLocally = () => {
     onSaveDraft({
@@ -272,6 +341,13 @@ export function DailyReportPage({
             </label>
           </div>
         </section>
+
+        <CorrectivePhotosSection
+          photos={draft.photos || []}
+          onAddPhoto={addPhoto}
+          onUpdateCaption={updatePhotoCaption}
+          onDeletePhoto={deletePhoto}
+        />
 
         {!machinePhotoValid ? (
           <p className="text-sm text-red-600">

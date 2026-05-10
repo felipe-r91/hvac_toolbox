@@ -340,5 +340,6 @@ export type DailyDraft = {
   workConductedToday: string;
   furtherActions: string;
 
+  photos: CorrectivePhoto[];
   synced?: boolean;
 };

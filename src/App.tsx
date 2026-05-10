@@ -1175,8 +1175,51 @@ export default function App() {
       reportProgress(onProgress, 35, `Syncing machine photo for ${draft.machineTag}...`);
       await syncSharedMachinePhoto(draft.machineId);
 
-      reportProgress(onProgress, 70, `Sending daily report for ${draft.machineTag}...`);
+      reportProgress(onProgress, 40, `Sending daily report for ${draft.machineTag}...`);
       await postDailyDraft(draft);
+
+      const totalPhotos = (draft.photos || []).length;
+      const uploadedPhotos: Record<
+        string,
+        { remotePhotoId: string; previewUrl?: string }
+      > = {};
+
+      if (totalPhotos === 0) {
+        reportProgress(onProgress, 80, `No photos to upload for ${draft.machineTag}...`);
+      } else {
+        for (let index = 0; index < totalPhotos; index += 1) {
+          const photo = draft.photos[index];
+
+          const uploaded = await uploadPhotoRecord({
+            ownerType: "DAILY_DRAFT",
+            ownerId: draft.id,
+            machineId: draft.machineId,
+            caption: photo.caption,
+            photoId: photo.id,
+            onUploadProgress: (uploadPercent) => {
+              const fileStart = index / totalPhotos;
+              const fileSpan = 1 / totalPhotos;
+              const overallPercent = Math.round(
+                (0.45 + (fileStart + (uploadPercent / 100) * fileSpan) * 0.4) * 100
+              );
+
+              reportProgress(
+                onProgress,
+                overallPercent,
+                `Uploading photo ${index + 1} of ${totalPhotos} for ${draft.machineTag}...`
+              );
+            },
+          });
+
+          uploadedPhotos[photo.id] = {
+            remotePhotoId: uploaded.id,
+            previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+          };
+        }
+      }
+
+      reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
+      await cleanupDailyDraftPhotos(draft, uploadedPhotos);
 
       markDailyDraftSynced(draftId);
       reportProgress(onProgress, 100, `Daily report for ${draft.machineTag} synced.`);
@@ -1263,12 +1306,23 @@ export default function App() {
   };
 
   const postDailyDraft = async (draft: DailyDraft) => {
+    const payload = {
+      ...draft,
+      photos: (draft.photos || []).map((photo) => ({
+        id: photo.id,
+        filename: photo.filename,
+        caption: photo.caption,
+        createdAt: photo.createdAt,
+        previewUrl: `/api/photos/${photo.id}`,
+      })),
+    };
+
     const response = await fetch(`${API_BASE_URL}/api/sync/daily`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(draft),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -1488,6 +1542,33 @@ export default function App() {
               file: undefined,
             })),
           }
+          : item
+      ),
+    }));
+  };
+
+  const cleanupDailyDraftPhotos = async (
+    draft: DailyDraft,
+    uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
+  ) => {
+    for (const photo of draft.photos || []) {
+      await deletePhotoBlob(photo.id);
+    }
+
+    setFleet((current) => ({
+      ...current,
+      dailyDrafts: current.dailyDrafts.map((item) =>
+        item.id === draft.id
+          ? {
+              ...item,
+              photos: (item.photos || []).map((photo) => ({
+                ...photo,
+                previewUrl: uploadedPhotos[photo.id]?.previewUrl ?? photo.previewUrl,
+                remotePhotoId: uploadedPhotos[photo.id]?.remotePhotoId ?? photo.remotePhotoId,
+                blobStored: false,
+                file: undefined,
+              })),
+            }
           : item
       ),
     }));
