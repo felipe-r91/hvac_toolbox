@@ -25,8 +25,7 @@ export function MachineViewPage({ vessels }: Props) {
   }, {});
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-4">
+    <section className="space-y-4">
         <BackButton />
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -86,8 +85,7 @@ export function MachineViewPage({ vessels }: Props) {
             ))}
           </div>
         </section>
-      </div>
-    </main>
+    </section>
   );
 }
 

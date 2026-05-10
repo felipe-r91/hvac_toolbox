@@ -20,7 +20,7 @@ import {
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
-import { MachineDetailPage } from "./pages/MachineDetailPage";
+import { MachineMaintenancePage } from "./pages/MachineMaintenancePage";
 import { MachinesPage } from "./pages/MachinesPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ReportDetailPage } from "./pages/ReportDetailPage";
@@ -48,7 +48,7 @@ import { CfrReportDetailPage } from "./pages/CfrReportDetailPage";
 import { DailyReportPage } from "./pages/DailyReportPage";
 import { DailyReportDetailPage } from "./pages/DailyReportDetailPage";
 
-function MachineDetailRoute({
+function MachineMaintenanceRoute({
   fleet,
   search,
   pendingOnly,
@@ -107,7 +107,7 @@ function MachineDetailRoute({
       .filter((url): url is string => Boolean(url));
 
   return (
-    <MachineDetailPage
+    <MachineMaintenancePage
       vessels={fleet.vessels}
       search={search}
       pendingOnly={pendingOnly}
@@ -130,7 +130,7 @@ function MachineDetailRoute({
   );
 }
 
-function MachineDetailRouteWithNavigation(props: {
+function MachineMaintenanceRouteWithNavigation(props: {
   fleet: FleetData;
   search: string;
   pendingOnly: boolean;
@@ -154,7 +154,7 @@ function MachineDetailRouteWithNavigation(props: {
   const navigate = useNavigate();
 
   return (
-    <MachineDetailRoute
+    <MachineMaintenanceRoute
       {...props}
       onFinishMaintenance={async (vesselId, machineId) => {
         const result = await props.onCreateReport(vesselId, machineId);
@@ -1953,7 +1953,7 @@ export default function App() {
         <Route
           path="/vessels/:vesselId/machines/:machineId"
           element={
-            <MachineDetailRouteWithNavigation
+            <MachineMaintenanceRouteWithNavigation
               fleet={fleet}
               search={search}
               pendingOnly={pendingOnly}

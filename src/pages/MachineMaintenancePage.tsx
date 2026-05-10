@@ -33,7 +33,7 @@ type Props = {
   onDeleteTaskPhoto: (taskId: string, previewUrl: string) => void;
 };
 
-export function MachineDetailPage({
+export function MachineMaintenancePage({
   vessels,
   search,
   pendingOnly,
