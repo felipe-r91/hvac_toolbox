@@ -320,6 +320,7 @@ export type CfrDraft = {
   createdAt: string;
 
   machineStatus: "online" | "down";
+  downtimeReason?: string;
   reportCategory: "cfr";
 
   failureComponent?: FailureComponent;

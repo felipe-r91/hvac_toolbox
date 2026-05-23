@@ -4,6 +4,7 @@ import { BackButton } from "../components/BackButton";
 import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
 import { MachineHeader } from "../components/MachineHeader";
 import { MachinePhotoSection } from "../components/MachinePhotoSection";
+import { MachineStatusField } from "../components/MachineStatusField";
 import {
   type CorrectivePhoto,
   type FailureCode,
@@ -106,6 +107,7 @@ export function CfrReportPage({
       createdAt: new Date().toISOString(),
 
       machineStatus: "online",
+      downtimeReason: "",
       reportCategory: "cfr",
 
       failureComponent: undefined,
@@ -156,6 +158,7 @@ export function CfrReportPage({
           ? {
             ...current,
             machineStatus: "online",
+            downtimeReason: "",
             failureComponent: undefined,
             failureMode: undefined,
             failureCode: undefined,
@@ -307,38 +310,12 @@ export function CfrReportPage({
           onPick={(file) => onAddMachinePhoto(plan.machine.id, file)}
         />
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Machine Status
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Select whether the machine was online or down during the onboard assessment.
-          </p>
-
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => updateMachineStatus("online")}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${!isMachineDown
-                ? "bg-green-100 text-green-800 ring-green-200"
-                : "bg-white text-slate-700 ring-slate-300"
-                }`}
-            >
-              Online
-            </button>
-
-            <button
-              type="button"
-              onClick={() => updateMachineStatus("down")}
-              className={`rounded-2xl px-4 py-3 text-sm font-medium ring-1 ${isMachineDown
-                ? "bg-red-100 text-red-800 ring-red-200"
-                : "bg-white text-slate-700 ring-slate-300"
-                }`}
-            >
-              Down
-            </button>
-          </div>
-        </section>
+        <MachineStatusField
+          value={draft.machineStatus}
+          downtimeReason={draft.downtimeReason || ""}
+          onStatusChange={updateMachineStatus}
+          onReasonChange={(value) => updateField("downtimeReason", value)}
+        />
 
         {isMachineDown ? (
           <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">

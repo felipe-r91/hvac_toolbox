@@ -66,6 +66,10 @@ export function CfrReportDetailPage({ cfrDrafts }: Props) {
           </section>
         ) : null}
 
+        {draft.machineStatus === "down" ? (
+          <DetailSection title="Downtime Reason" value={draft.downtimeReason || ""} />
+        ) : null}
+
         <DetailSection title="Condition Found" value={draft.conditionFound} />
         <DetailSection title="Symptoms Observed" value={draft.symptomsObserved} />
         <DetailSection title="Alarms / Abnormal Readings" value={draft.alarmsObserved} />
