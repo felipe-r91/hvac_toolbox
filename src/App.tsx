@@ -11,7 +11,7 @@ import {
   type MaintenanceTask,
   type NewMachinePayload,
   type NewVesselPayload,
-  type CorrectiveDraft,
+  type ServiceReportDraft,
   type UploadedPhotoRecord,
   type FleetSyncPayload,
   type FinishMaintenanceResult,
@@ -27,8 +27,8 @@ import { ReportDetailPage } from "./pages/ReportDetailPage";
 import { CfrReportPage } from "./pages/CfrReportPage";
 import { createId } from "./utils/createId";
 import { createTasksFromModel } from "./data/maintenancePlanLibrary";
-import { CorrectiveMaintenancePage } from "./pages/CorrectiveMaintenancePage";
-import { CorrectiveReportDetailPage } from "./pages/CorrectiveReportDetailPage";
+import { ServiceReportPage } from "./pages/ServiceReportPage";
+import { ServiceReportDetailPage } from "./pages/ServiceReportDetailPage";
 import { MachineViewPage } from "./pages/MachineViewPage";
 import { compressImageFile } from "./utils/imageCompression";
 import { savePhotoBlob, getPhotoBlob, deletePhotoBlob } from "./storage/photoDb";
@@ -161,9 +161,9 @@ function MachineMaintenanceRouteWithNavigation(props: {
 
         if (!result) return;
 
-        if (result.redirectedTo === "corrective" && result.linkedCorrectiveDraftId) {
-          alert("Machine marked as down. A linked corrective report was created automatically.");
-          navigate(`/corrective-reports/${result.linkedCorrectiveDraftId}`);
+        if (result.redirectedTo === "service_report" && result.linkedServiceReportDraftId) {
+          alert("Machine marked as down. A linked service report was created automatically.");
+          navigate(`/service-reports/${result.linkedServiceReportDraftId}`);
           return;
         }
 
@@ -235,7 +235,7 @@ export default function App() {
       ...current,
       vessels: current.vessels.filter((vessel) => vessel.id !== vesselId),
       reports: current.reports.filter((report) => report.vesselId !== vesselId),
-      correctiveDrafts: current.correctiveDrafts.filter(
+      serviceReportDrafts: current.serviceReportDrafts.filter(
         (draft) => draft.vesselId !== vesselId
       ),
       cfrDrafts: current.cfrDrafts.filter((draft) => draft.vesselId !== vesselId),
@@ -531,8 +531,8 @@ export default function App() {
 
     const completedAt = new Date().toISOString();
     const reportId = createId();
-    const shouldCreateCorrective = plan.machine.operatingStatus === "down";
-    const correctiveDraftId = shouldCreateCorrective ? createId() : undefined;
+    const shouldCreateServiceReport = plan.machine.operatingStatus === "down";
+    const serviceReportDraftId = shouldCreateServiceReport ? createId() : undefined;
 
     const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
     const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
@@ -562,12 +562,12 @@ export default function App() {
       skippedCount,
       tasks: plan.tasks.map((task) => ({ ...task })),
       synced: false,
-      linkedCorrectiveDraftId: correctiveDraftId,
+      linkedServiceReportDraftId: serviceReportDraftId,
     };
 
-    const linkedCorrectiveDraft: CorrectiveDraft | null = shouldCreateCorrective
+    const linkedServiceReportDraft: ServiceReportDraft | null = shouldCreateServiceReport
       ? {
-        id: correctiveDraftId!,
+        id: serviceReportDraftId!,
         vesselId: vessel.id,
         vesselName: vessel.name,
         machineId: plan.machine.id,
@@ -577,41 +577,10 @@ export default function App() {
         machineStarterType: plan.machine.starterType,
         machineLocation: plan.machine.location,
         createdAt: completedAt,
-
-        reportCategory: "corrective",
-
-        failureComponent: plan.machine.failureComponent,
-        failureMode: plan.machine.failureMode,
-        failureCode: plan.machine.failureCode,
-
-        problemSummary:
-          plan.machine.failureNotes?.trim() ||
-          plan.machine.downtimeReason?.trim() ||
-          `${plan.machine.tag} found down during preventive maintenance.`,
-
-        conditionFound:
-          plan.machine.failureNotes?.trim() ||
-          plan.machine.downtimeReason?.trim() ||
-          "Failure detected during preventive maintenance visit.",
-
-        symptomsObserved: plan.tasks
-          .filter((task) => task.status === "fault" || task.status === "attention")
-          .map((task) => {
-            const note = task.notes?.trim();
-            return note ? `${task.task}: ${note}` : task.task;
-          })
-          .join("\n"),
-
-        alarmsObserved: "",
-        operationalImpact:
-          plan.machine.downtimeReason?.trim() || "Machine unavailable for normal operation.",
-
-        preliminaryDiagnosis: "",
-        confirmedCause: "",
-        correctiveAction: "",
+        reportCategory: "service_report",
+        workPerformed: "",
         recommendations: "",
         furtherActionRequired: "",
-
         machineReturnedToService: "no",
         photos: [],
         synced: false,
@@ -632,9 +601,9 @@ export default function App() {
     setFleet((current) => ({
       ...current,
       reports: [report, ...current.reports],
-      correctiveDrafts: linkedCorrectiveDraft
-        ? [linkedCorrectiveDraft, ...current.correctiveDrafts]
-        : current.correctiveDrafts,
+      serviceReportDrafts: linkedServiceReportDraft
+        ? [linkedServiceReportDraft, ...current.serviceReportDrafts]
+        : current.serviceReportDrafts,
       photos: current.photos.map((photo) => {
         const isTaskPhotoForThisReport =
           photo.machineId === machineId &&
@@ -678,8 +647,8 @@ export default function App() {
 
     return {
       reportId,
-      linkedCorrectiveDraftId: correctiveDraftId,
-      redirectedTo: shouldCreateCorrective ? "corrective" : "health_check",
+      linkedServiceReportDraftId: serviceReportDraftId,
+      redirectedTo: shouldCreateServiceReport ? "service_report" : "health_check",
     };
   };
 
@@ -778,7 +747,7 @@ export default function App() {
         };
       }),
       reports: current.reports.filter((report) => report.machineId !== payload.machineId),
-      correctiveDrafts: current.correctiveDrafts.filter(
+      serviceReportDrafts: current.serviceReportDrafts.filter(
         (draft) => draft.machineId !== payload.machineId
       ),
       cfrDrafts: current.cfrDrafts.filter(
@@ -791,35 +760,35 @@ export default function App() {
     }));
   };
 
-  const saveCorrectiveDraft = (draft: CorrectiveDraft) => {
+  const saveServiceReportDraft = (draft: ServiceReportDraft) => {
     const payload = {
       ...draft,
       synced: false,
     };
 
     setFleet((current) => {
-      const existing = current.correctiveDrafts.find((item) => item.id === payload.id);
+      const existing = current.serviceReportDrafts.find((item) => item.id === payload.id);
 
       return {
         ...current,
-        correctiveDrafts: existing
-          ? current.correctiveDrafts.map((item) =>
+        serviceReportDrafts: existing
+          ? current.serviceReportDrafts.map((item) =>
             item.id === payload.id ? payload : item
           )
-          : [payload, ...current.correctiveDrafts],
+          : [payload, ...current.serviceReportDrafts],
       };
     });
   };
 
-  const deleteCorrectiveDraft = (draftId: string) => {
+  const deleteServiceReportDraft = (draftId: string) => {
     setFleet((current) => ({
       ...current,
-      correctiveDrafts: current.correctiveDrafts.filter((item) => item.id !== draftId),
+      serviceReportDrafts: current.serviceReportDrafts.filter((item) => item.id !== draftId),
     }));
   };
 
-  const getCorrectiveDraftByMachine = (machineId: string) => {
-    return fleet.correctiveDrafts.find((item) => item.machineId === machineId) || null;
+  const getServiceReportDraftByMachine = (machineId: string) => {
+    return fleet.serviceReportDrafts.find((item) => item.machineId === machineId) || null;
   };
 
   const reportProgress = (
@@ -839,10 +808,10 @@ export default function App() {
     }));
   };
 
-  const markCorrectiveDraftSynced = (draftId: string) => {
+  const markServiceReportDraftSynced = (draftId: string) => {
     setFleet((current) => ({
       ...current,
-      correctiveDrafts: current.correctiveDrafts.map((draft) =>
+      serviceReportDrafts: current.serviceReportDrafts.map((draft) =>
         draft.id === draftId ? { ...draft, synced: true } : draft
       ),
     }));
@@ -877,7 +846,7 @@ export default function App() {
     onProgress?: (info: SyncProgressInfo) => void
   ) => {
     const pendingReports = fleet.reports.filter((item) => !item.synced);
-    const pendingCorrectiveDrafts = fleet.correctiveDrafts.filter(
+    const pendingServiceReportDrafts = fleet.serviceReportDrafts.filter(
       (item) => !item.synced
     );
     const pendingCfrDrafts = fleet.cfrDrafts.filter((item) => !item.synced);
@@ -885,7 +854,7 @@ export default function App() {
 
     const totalItems =
       pendingReports.length +
-      pendingCorrectiveDrafts.length +
+      pendingServiceReportDrafts.length +
       pendingCfrDrafts.length +
       pendingDailyDrafts.length;
 
@@ -920,8 +889,8 @@ export default function App() {
         );
       }
 
-      for (const draft of pendingCorrectiveDrafts) {
-        await syncCorrectiveDraft(draft.id, (info) => {
+      for (const draft of pendingServiceReportDrafts) {
+        await syncServiceReportDraft(draft.id, (info) => {
           const itemBase = completedItems / totalItems;
           const itemWeight = 1 / totalItems;
           const overallPercent = Math.round(
@@ -1026,14 +995,14 @@ export default function App() {
     }
   };
 
-  const syncCorrectiveDraft = async (
+  const syncServiceReportDraft = async (
     draftId: string,
     onProgress?: (info: SyncProgressInfo) => void
   ) => {
-    const draft = fleet.correctiveDrafts.find((item) => item.id === draftId);
+    const draft = fleet.serviceReportDrafts.find((item) => item.id === draftId);
 
     if (!draft) {
-      alert("Corrective draft not found.");
+      alert("Service report draft not found.");
       return;
     }
 
@@ -1044,8 +1013,8 @@ export default function App() {
       reportProgress(onProgress, 8, `Syncing machine photo for ${draft.machineTag}...`);
       await syncSharedMachinePhoto(draft.machineId);
 
-      reportProgress(onProgress, 10, `Sending corrective draft for ${draft.machineTag}...`);
-      await postCorrectiveDraft(draft);
+      reportProgress(onProgress, 10, `Sending service report draft for ${draft.machineTag}...`);
+      await postServiceReportDraft(draft);
 
       const totalPhotos = draft.photos.length;
       const uploadedPhotos: Record<
@@ -1060,7 +1029,7 @@ export default function App() {
           const photo = draft.photos[index];
 
           const uploaded = await uploadPhotoRecord({
-            ownerType: "CORRECTIVE_DRAFT",
+            ownerType: "SERVICE_REPORT_DRAFT",
             ownerId: draft.id,
             machineId: draft.machineId,
             caption: photo.caption,
@@ -1088,15 +1057,15 @@ export default function App() {
       }
 
       reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
-      await cleanupCorrectiveDraftPhotos(draft, uploadedPhotos);
+      await cleanupServiceReportDraftPhotos(draft, uploadedPhotos);
 
-      markCorrectiveDraftSynced(draftId);
-      reportProgress(onProgress, 100, `Corrective draft for ${draft.machineTag} synced.`);
+      markServiceReportDraftSynced(draftId);
+      reportProgress(onProgress, 100, `Service report draft for ${draft.machineTag} synced.`);
 
-      alert("Corrective draft synced successfully.");
+      alert("Service report draft synced successfully.");
     } catch (error) {
       console.error(error);
-      alert("Failed to sync corrective draft.");
+      alert("Failed to sync service report draft.");
       throw error;
     }
   };
@@ -1251,7 +1220,7 @@ export default function App() {
     }
   };
 
-  const postCorrectiveDraft = async (draft: CorrectiveDraft) => {
+  const postServiceReportDraft = async (draft: ServiceReportDraft) => {
     const payload = {
       ...draft,
       photos: draft.photos.map((photo) => ({
@@ -1263,7 +1232,7 @@ export default function App() {
       })),
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/sync/corrective`, {
+    const response = await fetch(`${API_BASE_URL}/api/sync/service-report`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1273,7 +1242,7 @@ export default function App() {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Corrective sync failed: ${text}`);
+      throw new Error(`Service Report sync failed: ${text}`);
     }
 
     return response.json();
@@ -1361,7 +1330,7 @@ export default function App() {
     photoId,
     onUploadProgress,
   }: {
-    ownerType: "CORRECTIVE_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT" | "DAILY_DRAFT" | "MACHINE_PROFILE";
+    ownerType: "SERVICE_REPORT_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT" | "DAILY_DRAFT" | "MACHINE_PROFILE";
     ownerId: string;
     machineId: string;
     taskId?: string;
@@ -1510,8 +1479,8 @@ export default function App() {
     }));
   };
 
-  const cleanupCorrectiveDraftPhotos = async (
-    draft: CorrectiveDraft,
+  const cleanupServiceReportDraftPhotos = async (
+    draft: ServiceReportDraft,
     uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
   ) => {
     for (const photo of draft.photos) {
@@ -1520,7 +1489,7 @@ export default function App() {
 
     setFleet((current) => ({
       ...current,
-      correctiveDrafts: current.correctiveDrafts.map((item) =>
+      serviceReportDrafts: current.serviceReportDrafts.map((item) =>
         item.id === draft.id
           ? {
             ...item,
@@ -1728,7 +1697,7 @@ export default function App() {
     const shouldAutoSync =
       fleet.vessels.length === 0 &&
       fleet.reports.length === 0 &&
-      fleet.correctiveDrafts.length === 0 &&
+      fleet.serviceReportDrafts.length === 0 &&
       fleet.cfrDrafts.length === 0 &&
       fleet.dailyDrafts.length === 0;
 
@@ -1929,16 +1898,16 @@ export default function App() {
           element={
             <SyncPage
               reports={fleet.reports}
-              correctiveDrafts={fleet.correctiveDrafts}
+              serviceReportDrafts={fleet.serviceReportDrafts}
               cfrDrafts={fleet.cfrDrafts}
               dailyDrafts={fleet.dailyDrafts}
               onSyncAll={syncAllPendingItems}
               onSyncReport={syncPreventiveReport}
-              onSyncCorrectiveDraft={syncCorrectiveDraft}
+              onSyncServiceReportDraft={syncServiceReportDraft}
               onSyncCfrDraft={syncCfrDraft}
               onSyncDailyDraft={syncDailyDraft}
               onDeleteReport={deletePreventiveReport}
-              onDeleteCorrectiveDraft={deleteCorrectiveDraft}
+              onDeleteServiceReportDraft={deleteServiceReportDraft}
               onDeleteCfrDraft={deleteCfrDraft}
               onDeleteDailyDraft={deleteDailyDraft}
               onSyncOfflineRegistry={syncOfflineRegistry}
@@ -1960,7 +1929,7 @@ export default function App() {
             <ReportsPage
               vessels={fleet.vessels}
               reports={fleet.reports}
-              correctiveDrafts={fleet.correctiveDrafts}
+              serviceReportDrafts={fleet.serviceReportDrafts}
               cfrDrafts={fleet.cfrDrafts}
               dailyDrafts={fleet.dailyDrafts}
             />
@@ -2005,13 +1974,13 @@ export default function App() {
         />
 
         <Route
-          path="/vessels/:vesselId/machines/:machineId/corrective"
+          path="/vessels/:vesselId/machines/:machineId/service-report"
           element={
-            <CorrectiveMaintenancePage
+            <ServiceReportPage
               vessels={fleet.vessels}
-              onSaveDraft={saveCorrectiveDraft}
-              onDeleteDraft={deleteCorrectiveDraft}
-              getExistingDraft={getCorrectiveDraftByMachine}
+              onSaveDraft={saveServiceReportDraft}
+              onDeleteDraft={deleteServiceReportDraft}
+              getExistingDraft={getServiceReportDraftByMachine}
               onAddMachinePhoto={addMachinePhoto}
               onDeleteMachinePhoto={deleteMachinePhoto}
             />
@@ -2052,8 +2021,8 @@ export default function App() {
         />
 
         <Route
-          path="/corrective-reports/:draftId"
-          element={<CorrectiveReportDetailPage correctiveDrafts={fleet.correctiveDrafts} />}
+          path="/service-reports/:draftId"
+          element={<ServiceReportDetailPage serviceReportDrafts={fleet.serviceReportDrafts} />}
         />
 
         <Route

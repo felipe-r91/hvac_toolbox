@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
-import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
+import { ReportPhotosSection } from "../components/ReportPhotosSection";
 import { MachineFailureField } from "../components/MachineFailureField";
 import { MachineHeader } from "../components/MachineHeader";
 import { MachinePhotoSection } from "../components/MachinePhotoSection";
 import {
-  type CorrectivePhoto,
+  type ReportPhoto,
   type DailyDraft,
   type FailureCode,
   type FailureComponent,
@@ -143,7 +143,7 @@ export function DailyReportPage({
       createdAt: new Date().toISOString(),
     });
 
-    const photo: CorrectivePhoto = {
+    const photo: ReportPhoto = {
       id: photoId,
       filename: compressedFile.name,
       caption: "",
@@ -341,7 +341,7 @@ export function DailyReportPage({
           </div>
         </section>
 
-        <CorrectivePhotosSection
+        <ReportPhotosSection
           photos={draft.photos || []}
           onAddPhoto={addPhoto}
           onUpdateCaption={updatePhotoCaption}

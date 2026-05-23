@@ -1,7 +1,18 @@
-import { type FleetData } from "../types/maintenance";
+import { type FleetData, type ServiceReportDraft } from "../types/maintenance";
 import { emptyFleet } from "../data/emptyFleet";
 
 const STORAGE_KEY = "hvac-fleet-data-v3";
+
+type StoredFleetData = Partial<FleetData> & {
+};
+
+function normalizeServiceReportDraft(draft: Record<string, unknown>): ServiceReportDraft {
+  return {
+    ...draft,
+    reportCategory: "service_report",
+    workPerformed: typeof draft.workPerformed === "string" ? draft.workPerformed : "",
+  } as ServiceReportDraft;
+}
 
 export function loadFleet(): FleetData {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -9,15 +20,18 @@ export function loadFleet(): FleetData {
   if (!raw) return emptyFleet;
 
   try {
-    const parsed = JSON.parse(raw) as FleetData;
+    const parsed = JSON.parse(raw) as StoredFleetData;
+    const storedServiceReportDrafts = Array.isArray(parsed.serviceReportDrafts)
+      ? parsed.serviceReportDrafts
+      : [];
 
     return {
       vessels: Array.isArray(parsed.vessels) ? parsed.vessels : [],
       reports: Array.isArray(parsed.reports) ? parsed.reports : [],
       photos: Array.isArray(parsed.photos) ? parsed.photos : [],
-      correctiveDrafts: Array.isArray(parsed.correctiveDrafts)
-        ? parsed.correctiveDrafts
-        : [],
+      serviceReportDrafts: storedServiceReportDrafts.map((draft) =>
+        normalizeServiceReportDraft(draft as Record<string, unknown>)
+      ),
       cfrDrafts: Array.isArray(parsed.cfrDrafts) ? parsed.cfrDrafts : [],
       dailyDrafts: Array.isArray(parsed.dailyDrafts) ? parsed.dailyDrafts : [],
     };

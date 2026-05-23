@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   type CfrDraft,
-  type CorrectiveDraft,
+  type ServiceReportDraft,
   type DailyDraft,
   type MaintenanceReport,
   type ReportCategory,
@@ -12,7 +12,7 @@ import { LuFileText } from "react-icons/lu";
 type Props = {
   vessels: Vessel[];
   reports: MaintenanceReport[];
-  correctiveDrafts: CorrectiveDraft[];
+  serviceReportDrafts: ServiceReportDraft[];
   cfrDrafts: CfrDraft[];
   dailyDrafts: DailyDraft[];
 };
@@ -27,7 +27,7 @@ function reportCategoryBadge(category: ReportCategory) {
   switch (category) {
     case "health_check":
       return "bg-blue-100 text-blue-800";
-    case "corrective":
+    case "service_report":
       return "bg-yellow-100 text-yellow-800";
     case "cfr":
       return "bg-purple-100 text-purple-800";
@@ -42,8 +42,8 @@ function reportCategoryLabel(category: ReportCategory) {
   switch (category) {
     case "health_check":
       return "Health Check";
-    case "corrective":
-      return "Corrective";
+    case "service_report":
+      return "Service Report";
     case "cfr":
       return "CFR";
     case "daily":
@@ -65,12 +65,12 @@ type MachineHistoryItem =
     }
   | {
       id: string;
-      source: "corrective_draft";
-      reportCategory: "corrective";
+      source: "service_report_draft";
+      reportCategory: "service_report";
       date: string;
       status: "online" | "down";
       label: string;
-      correctiveDraft: CorrectiveDraft;
+      serviceReportDraft: ServiceReportDraft;
     }
   | {
       id: string;
@@ -94,7 +94,7 @@ type MachineHistoryItem =
 export function ReportsPage({
   vessels,
   reports,
-  correctiveDrafts,
+  serviceReportDrafts,
   cfrDrafts,
   dailyDrafts,
 }: Props) {
@@ -115,7 +115,7 @@ export function ReportsPage({
             (report) => report.vesselId === vessel.id
           );
 
-          const vesselCorrectiveDrafts = correctiveDrafts.filter(
+          const vesselServiceReportDrafts = serviceReportDrafts.filter(
             (draft) => draft.vesselId === vessel.id
           );
 
@@ -129,7 +129,7 @@ export function ReportsPage({
 
           const vesselHistoryCount =
             vesselPreventiveReports.length +
-            vesselCorrectiveDrafts.length +
+            vesselServiceReportDrafts.length +
             vesselCfrDrafts.length +
             vesselDailyDrafts.length;
 
@@ -171,17 +171,18 @@ export function ReportsPage({
                       })
                     );
 
-                  const machineCorrectiveDrafts = vesselCorrectiveDrafts
+                  const machineServiceReportDrafts = vesselServiceReportDrafts
                     .filter((draft) => draft.machineId === plan.machine.id)
                     .map(
                       (draft): MachineHistoryItem => ({
                         id: draft.id,
-                        source: "corrective_draft",
-                        reportCategory: "corrective",
+                        source: "service_report_draft",
+                        reportCategory: "service_report",
                         date: draft.createdAt,
-                        status: "down",
+                        status:
+                          draft.machineReturnedToService === "yes" ? "online" : "down",
                         label: new Date(draft.createdAt).toLocaleString(),
-                        correctiveDraft: draft,
+                        serviceReportDraft: draft,
                       })
                     );
 
@@ -215,7 +216,7 @@ export function ReportsPage({
 
                   const machineHistory = [
                     ...machinePreventiveReports,
-                    ...machineCorrectiveDrafts,
+                    ...machineServiceReportDrafts,
                     ...machineCfrDrafts,
                     ...machineDailyDrafts,
                   ].sort(
@@ -281,19 +282,19 @@ export function ReportsPage({
                               );
                             }
 
-                            if (item.source === "corrective_draft") {
+                            if (item.source === "service_report_draft") {
                               return (
                                 <Link
                                   key={item.id}
-                                  to={`/corrective-reports/${item.id}`}
+                                  to={`/service-reports/${item.id}`}
                                   className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
                                 >
                                   <div className="flex items-center justify-between gap-3">
                                     <div>
                                       <div>{item.label}</div>
                                       <div className="mt-1 text-xs text-slate-500">
-                                        {item.correctiveDraft.problemSummary ||
-                                          "Corrective report"}
+                                        {item.serviceReportDraft.workPerformed ||
+                                          "Service report"}
                                       </div>
                                     </div>
 

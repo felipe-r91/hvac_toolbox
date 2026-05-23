@@ -52,7 +52,7 @@ export type FailureMode =
   | "other";
 
 
-export type ReportCategory = "health_check" | "corrective" | "cfr" | "daily";
+export type ReportCategory = "health_check" | "service_report" | "cfr" | "daily";
 
 export type MachineMeta = {
   id: string;
@@ -157,14 +157,14 @@ export type MaintenanceReport = {
   machinePhotoIds?: string[];
   skippedCount?: number;
   synced?: boolean;
-  linkedCorrectiveDraftId?: string;
+  linkedServiceReportDraftId?: string;
 };
 
 export type FleetData = {
   vessels: Vessel[];
   reports: MaintenanceReport[];
   photos: PhotoRecord[];
-  correctiveDrafts: CorrectiveDraft[];
+  serviceReportDrafts: ServiceReportDraft[];
   cfrDrafts: CfrDraft[];
   dailyDrafts: DailyDraft[];
 };
@@ -185,7 +185,7 @@ export type PhotoRecord = {
   remotePhotoId?: string;
 };
 
-export type CorrectivePhoto = {
+export type ReportPhoto = {
   id: string;
   previewUrl?: string;
   filename: string;
@@ -196,7 +196,7 @@ export type CorrectivePhoto = {
   remotePhotoId?: string;
 };
 
-export type CorrectiveDraft = {
+export type ServiceReportDraft = {
   id: string;
   vesselId: string;
   vesselName: string;
@@ -208,27 +208,14 @@ export type CorrectiveDraft = {
   machineLocation: string;
   createdAt: string;
 
-  failureComponent?: FailureComponent;
-  failureMode?: FailureMode;
-  failureCode?: FailureCode;
-
-  problemSummary: string;
-  conditionFound: string;
-  symptomsObserved: string;
-  alarmsObserved: string;
-  operationalImpact: string;
-
-  preliminaryDiagnosis: string;
-  confirmedCause: string;
-
-  correctiveAction: string;
+  workPerformed: string;
   recommendations: string;
   furtherActionRequired: string;
 
   machineReturnedToService: "yes" | "no" | "unknown";
-  reportCategory: "corrective";
+  reportCategory: "service_report";
 
-  photos: CorrectivePhoto[];
+  photos: ReportPhoto[];
   synced?: boolean;
   sourcePreventiveReportId?: string;
 };
@@ -237,7 +224,7 @@ export type UploadedPhotoRecord = {
   id: string;
   ownerType:
     | "MACHINE_PROFILE"
-    | "CORRECTIVE_DRAFT"
+    | "SERVICE_REPORT_DRAFT"
     | "PREVENTIVE_MACHINE"
     | "PREVENTIVE_TASK"
     | "CFR_DRAFT"
@@ -303,8 +290,8 @@ export type FailureCode =
 
   export type FinishMaintenanceResult = {
   reportId: string;
-  linkedCorrectiveDraftId?: string;
-  redirectedTo: "health_check" | "corrective";
+  linkedServiceReportDraftId?: string;
+  redirectedTo: "health_check" | "service_report";
 };
 
 export type CfrDraft = {
@@ -338,7 +325,7 @@ export type CfrDraft = {
   recommendations: string;
   furtherActionRequired: string;
 
-  photos: CorrectivePhoto[];
+  photos: ReportPhoto[];
   synced?: boolean;
 };
 
@@ -365,6 +352,6 @@ export type DailyDraft = {
   workConductedToday: string;
   furtherActions: string;
 
-  photos: CorrectivePhoto[];
+  photos: ReportPhoto[];
   synced?: boolean;
 };

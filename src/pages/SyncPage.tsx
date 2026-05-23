@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   type CfrDraft,
-  type CorrectiveDraft,
+  type ServiceReportDraft,
   type DailyDraft,
   type MaintenanceReport,
 } from "../types/maintenance";
@@ -15,7 +15,7 @@ export type SyncProgressInfo = {
 
 type Props = {
   reports: MaintenanceReport[];
-  correctiveDrafts: CorrectiveDraft[];
+  serviceReportDrafts: ServiceReportDraft[];
   cfrDrafts: CfrDraft[];
   dailyDrafts: DailyDraft[];
   onSyncAll: (onProgress: (info: SyncProgressInfo) => void) => Promise<void>;
@@ -23,7 +23,7 @@ type Props = {
     reportId: string,
     onProgress: (info: SyncProgressInfo) => void
   ) => Promise<void>;
-  onSyncCorrectiveDraft: (
+  onSyncServiceReportDraft: (
     draftId: string,
     onProgress: (info: SyncProgressInfo) => void
   ) => Promise<void>;
@@ -36,7 +36,7 @@ type Props = {
     onProgress: (info: SyncProgressInfo) => void
   ) => Promise<void>;
   onDeleteReport: (reportId: string) => void;
-  onDeleteCorrectiveDraft: (draftId: string) => void;
+  onDeleteServiceReportDraft: (draftId: string) => void;
   onDeleteCfrDraft: (draftId: string) => void;
   onDeleteDailyDraft: (draftId: string) => void;
   onSyncOfflineRegistry: () => Promise<void>;
@@ -52,16 +52,16 @@ type Props = {
 
 export function SyncPage({
   reports,
-  correctiveDrafts,
+  serviceReportDrafts,
   cfrDrafts,
   dailyDrafts,
   onSyncAll,
   onSyncReport,
-  onSyncCorrectiveDraft,
+  onSyncServiceReportDraft,
   onSyncCfrDraft,
   onSyncDailyDraft,
   onDeleteReport,
-  onDeleteCorrectiveDraft,
+  onDeleteServiceReportDraft,
   onDeleteCfrDraft,
   onDeleteDailyDraft,
   onSyncOfflineRegistry,
@@ -87,13 +87,13 @@ export function SyncPage({
     useState("");
 
   const pendingReports = reports.filter((report) => !report.synced);
-  const pendingCorrectiveDrafts = correctiveDrafts.filter((draft) => !draft.synced);
+  const pendingServiceReportDrafts = serviceReportDrafts.filter((draft) => !draft.synced);
   const pendingCfrDrafts = cfrDrafts.filter((draft) => !draft.synced);
   const pendingDailyDrafts = dailyDrafts.filter((draft) => !draft.synced);
 
   const totalPending =
     pendingReports.length +
-    pendingCorrectiveDrafts.length +
+    pendingServiceReportDrafts.length +
     pendingCfrDrafts.length +
     pendingDailyDrafts.length;
 
@@ -147,16 +147,16 @@ export function SyncPage({
     }
   };
 
-  const handleSyncCorrectiveDraft = async (
+  const handleSyncServiceReportDraft = async (
     draftId: string,
     machineTag: string
   ) => {
     setSyncLoading(true);
     setSyncProgress(0);
-    setSyncLabel(`Preparing corrective report for ${machineTag}...`);
+    setSyncLabel(`Preparing service report for ${machineTag}...`);
 
     try {
-      await onSyncCorrectiveDraft(draftId, ({ percent, label }) => {
+      await onSyncServiceReportDraft(draftId, ({ percent, label }) => {
         setSyncProgress(percent);
         setSyncLabel(label);
       });
@@ -446,12 +446,12 @@ export function SyncPage({
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">
-          Corrective reports pending upload
+          Service reports pending upload
         </h2>
 
         <div className="mt-4 space-y-3">
-          {pendingCorrectiveDrafts.length > 0 ? (
-            pendingCorrectiveDrafts.map((draft) => (
+          {pendingServiceReportDrafts.length > 0 ? (
+            pendingServiceReportDrafts.map((draft) => (
               <div
                 key={draft.id}
                 className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"
@@ -463,7 +463,7 @@ export function SyncPage({
                         {draft.machineTag}
                       </h3>
                       <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800">
-                        Corrective
+                        Service Report
                       </span>
                     </div>
 
@@ -479,7 +479,7 @@ export function SyncPage({
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => handleSyncCorrectiveDraft(draft.id, draft.machineTag)}
+                      onClick={() => handleSyncServiceReportDraft(draft.id, draft.machineTag)}
                       disabled={updateLoading || syncLoading}
                       className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
                         updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
@@ -492,9 +492,9 @@ export function SyncPage({
                       type="button"
                       onClick={() => {
                         const confirmed = window.confirm(
-                          "Delete this corrective report?"
+                          "Delete this service report?"
                         );
-                        if (confirmed) onDeleteCorrectiveDraft(draft.id);
+                        if (confirmed) onDeleteServiceReportDraft(draft.id);
                       }}
                       disabled={updateLoading || syncLoading}
                       className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200"
@@ -507,7 +507,7 @@ export function SyncPage({
             ))
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
-              No corrective reports pending upload.
+              No service reports pending upload.
             </div>
           )}
         </div>

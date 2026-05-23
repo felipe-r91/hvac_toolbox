@@ -88,11 +88,11 @@ export function ShipMachinesPage({ vessels }: Props) {
           setModalOpen(false);
           setSelectedMachine(null);
         }}
-        onChooseCorrective={() => {
+        onChooseServiceReport={() => {
           if (!selectedMachine) return;
 
           navigate(
-            `/vessels/${selectedMachine.vesselId}/machines/${selectedMachine.machineId}/corrective`
+            `/vessels/${selectedMachine.vesselId}/machines/${selectedMachine.machineId}/service-report`
           );
 
           setModalOpen(false);

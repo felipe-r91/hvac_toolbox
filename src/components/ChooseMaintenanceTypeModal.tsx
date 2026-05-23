@@ -8,11 +8,11 @@ type Props = {
   onClose: () => void;
   onChooseCfr: () => void;
   onChoosePreventive: () => void;
-  onChooseCorrective: () => void;
+  onChooseServiceReport: () => void;
   onChooseDaily: () => void;
 };
 
-export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoosePreventive, onChooseCorrective, onChooseDaily }: Props) {
+export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoosePreventive, onChooseServiceReport, onChooseDaily }: Props) {
   return (
     <Modal title="Select type" open={open} onClose={onClose}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -41,12 +41,12 @@ export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoos
 
         <button
           type="button"
-          onClick={onChooseCorrective}
+          onClick={onChooseServiceReport}
           className="rounded-3xl bg-slate-100 px-4 py-6 text-left ring-1 ring-slate-200"
         >
           <div className="flex gap-6">
             <RiAlarmWarningLine size={28} />
-          <div className="mt-1 text-sm text-slate-500">Corrective Report.</div>
+          <div className="mt-1 text-sm text-slate-500">Service Report.</div>
           </div>
         </button>
 

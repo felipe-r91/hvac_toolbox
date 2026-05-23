@@ -1,15 +1,15 @@
 import { useRef } from "react";
 import { IoCameraOutline, IoImagesOutline, IoTrashOutline } from "react-icons/io5";
-import { type CorrectivePhoto } from "../types/maintenance";
+import { type ReportPhoto } from "../types/maintenance";
 
 type Props = {
-  photos: CorrectivePhoto[];
+  photos: ReportPhoto[];
   onAddPhoto: (file: File) => void;
   onUpdateCaption: (photoId: string, caption: string) => void;
   onDeletePhoto: (photoId: string) => void;
 };
 
-export function CorrectivePhotosSection({
+export function ReportPhotosSection({
   photos,
   onAddPhoto,
   onUpdateCaption,
@@ -91,7 +91,7 @@ export function CorrectivePhotosSection({
               {photo.previewUrl ? (
                 <img
                   src={photo.previewUrl}
-                  alt={photo.caption || "Corrective maintenance photo"}
+                  alt={photo.caption || "Report photo"}
                   className="h-52 w-full rounded-2xl object-cover"
                 />
               ) : null}

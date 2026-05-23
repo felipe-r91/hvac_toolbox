@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
-import { CorrectivePhotosSection } from "../components/CorrectivePhotosSection";
+import { ReportPhotosSection } from "../components/ReportPhotosSection";
 import { MachineHeader } from "../components/MachineHeader";
 import { MachinePhotoSection } from "../components/MachinePhotoSection";
 import { MachineStatusField } from "../components/MachineStatusField";
 import {
-  type CorrectivePhoto,
+  type ReportPhoto,
   type FailureCode,
   type FailureComponent,
   type FailureMode,
@@ -201,7 +201,7 @@ export function CfrReportPage({
       createdAt: new Date().toISOString(),
     });
 
-    const photo: CorrectivePhoto = {
+    const photo: ReportPhoto = {
       id: photoId,
       filename: compressedFile.name,
       caption: "",
@@ -534,7 +534,7 @@ export function CfrReportPage({
           </div>
         </section>
 
-        <CorrectivePhotosSection
+        <ReportPhotosSection
           photos={draft.photos}
           onAddPhoto={addPhoto}
           onUpdateCaption={updatePhotoCaption}

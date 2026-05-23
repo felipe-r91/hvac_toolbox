@@ -5,7 +5,7 @@ export function mergeFleetRegistry(current: FleetData, remoteVessels: Vessel[]):
     ...current,
     vessels: remoteVessels,
     reports: current.reports,
-    correctiveDrafts: current.correctiveDrafts,
+    serviceReportDrafts: current.serviceReportDrafts,
     photos: current.photos,
   };
 }

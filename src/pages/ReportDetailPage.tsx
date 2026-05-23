@@ -114,21 +114,21 @@ function getTaskPhotos(taskId: string) {
         ) : null}
       </section>
 
-      {report.linkedCorrectiveDraftId ? (
+      {report.linkedServiceReportDraftId ? (
         <section className="rounded-3xl bg-yellow-50 p-5 shadow-sm ring-1 ring-yellow-200">
           <h2 className="text-lg font-semibold text-yellow-900">
-            Linked corrective report created
+            Linked service report created
           </h2>
           <p className="mt-2 text-sm text-yellow-800">
-            This maintenance visit detected a failure and automatically created a
-            corrective report for follow-up and recurring failure analysis.
+            This maintenance visit marked the machine as down and automatically
+            created a service report for follow-up work.
           </p>
 
           <Link
-            to={`/corrective-reports/${report.linkedCorrectiveDraftId}`}
+            to={`/service-reports/${report.linkedServiceReportDraftId}`}
             className="mt-4 inline-flex rounded-2xl bg-yellow-600 px-4 py-2 text-sm font-medium text-white"
           >
-            Open corrective report
+            Open service report
           </Link>
         </section>
       ) : null}
