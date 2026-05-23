@@ -3,23 +3,16 @@ import { Link } from "react-router-dom";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
 import { EditMachineModal } from "../components/EditMachineModal";
 import { createTasksFromModel } from "../data/maintenancePlanLibrary";
-import { type MachinePlan, type MaintenanceTask, type Vessel } from "../types/maintenance";
+import { type MachinePlan, type MaintenanceTask, type NewMachinePayload, type Vessel } from "../types/maintenance";
 import { LuThermometerSnowflake, LuTrash2 } from "react-icons/lu";
 import { BiEditAlt } from "react-icons/bi";
 
 type Props = {
   vessels: Vessel[];
   onEditMachine: (payload: {
-    vesselId: string;
     machineId: string;
-    location: string;
-    tag: string;
-    model: string;
-    serialNumber: string;
-    type: string;
-    starterType: string;
     tasks: MaintenanceTask[];
-  }) => void;
+  } & NewMachinePayload) => void;
   onDeleteMachine: (payload: { vesselId: string; machineId: string }) => void;
 };
 

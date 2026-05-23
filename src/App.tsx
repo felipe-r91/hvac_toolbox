@@ -201,7 +201,9 @@ export default function App() {
           id: createId(),
           name: payload.name,
           imoNumber: payload.imoNumber,
-          description: payload.description,
+          vesselType: payload.vesselType,
+          ownerCustomer: payload.ownerCustomer,
+          vesselContact: payload.vesselContact,
           machines: [],
         },
       ],
@@ -210,10 +212,7 @@ export default function App() {
 
   const editVessel = (payload: {
     id: string;
-    name: string;
-    imoNumber: string;
-    description: string;
-  }) => {
+  } & NewVesselPayload) => {
     setFleet((current) => ({
       ...current,
       vessels: current.vessels.map((vessel) =>
@@ -222,7 +221,9 @@ export default function App() {
             ...vessel,
             name: payload.name,
             imoNumber: payload.imoNumber,
-            description: payload.description,
+            vesselType: payload.vesselType,
+            ownerCustomer: payload.ownerCustomer,
+            vesselContact: payload.vesselContact,
           }
           : vessel
       ),
@@ -275,6 +276,12 @@ export default function App() {
                 serialNumber: payload.serialNumber,
                 type: payload.type,
                 starterType: payload.starterType,
+                refrigerant: payload.refrigerant,
+                oilType: payload.oilType,
+                controlSystem: payload.controlSystem,
+                softwareVersion: payload.softwareVersion,
+                compressorType: payload.compressorType,
+                mfg: payload.mfg,
                 operatingStatus: "online",
                 downtimeReason: "",
                 failureComponent: undefined,
@@ -698,6 +705,12 @@ export default function App() {
     serialNumber: string;
     type: string;
     starterType: string;
+    refrigerant: string;
+    oilType: string;
+    controlSystem: string;
+    softwareVersion: string;
+    compressorType: string;
+    mfg: string;
     tasks: MaintenanceTask[];
   }) => {
     setFleet((current) => ({
@@ -738,6 +751,12 @@ export default function App() {
                 serialNumber: payload.serialNumber,
                 type: payload.type,
                 starterType: payload.starterType,
+                refrigerant: payload.refrigerant,
+                oilType: payload.oilType,
+                controlSystem: payload.controlSystem,
+                softwareVersion: payload.softwareVersion,
+                compressorType: payload.compressorType,
+                mfg: payload.mfg,
               },
               tasks: nextTasks,
             };
@@ -1586,7 +1605,9 @@ export default function App() {
         id: vessel.id,
         name: vessel.name,
         imoNumber: vessel.imoNumber,
-        description: vessel.description || "",
+        vesselType: vessel.vesselType || "",
+        ownerCustomer: vessel.ownerCustomer || "",
+        vesselContact: vessel.vesselContact || "",
         machines: vessel.machines.map((plan) => ({
           id: plan.machine.id,
           location: plan.machine.location,
@@ -1595,6 +1616,12 @@ export default function App() {
           serialNumber: plan.machine.serialNumber,
           type: plan.machine.type,
           starterType: plan.machine.starterType,
+          refrigerant: plan.machine.refrigerant || "",
+          oilType: plan.machine.oilType || "",
+          controlSystem: plan.machine.controlSystem || "",
+          softwareVersion: plan.machine.softwareVersion || "",
+          compressorType: plan.machine.compressorType || "",
+          mfg: plan.machine.mfg || "",
         })),
       })),
     };

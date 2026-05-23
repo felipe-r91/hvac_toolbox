@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
 import { EditVesselModal } from "../components/EditVesselModal";
-import { type Vessel } from "../types/maintenance";
+import { type NewVesselPayload, type Vessel } from "../types/maintenance";
 import { RiShipLine } from "react-icons/ri";
 import { BiEditAlt } from "react-icons/bi";
 import { LuTrash2 } from "react-icons/lu";
@@ -11,10 +11,7 @@ type Props = {
   vessels: Vessel[];
   onEditVessel: (payload: {
     id: string;
-    name: string;
-    imoNumber: string;
-    description: string;
-  }) => void;
+  } & NewVesselPayload) => void;
   onDeleteVessel: (vesselId: string) => void;
 };
 
@@ -56,7 +53,13 @@ export function VesselsPage({ vessels, onEditVessel, onDeleteVessel }: Props) {
                       <h2 className="text-lg font-semibold text-slate-900">{vessel.name}</h2>
                       <p className="text-sm text-slate-500">IMO: {vessel.imoNumber || "—"}</p>
                       <p className="text-sm text-slate-500">
-                        {vessel.description || "No description"}
+                        Vessel Type: {vessel.vesselType || "—"}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Owner/Customer: {vessel.ownerCustomer || "—"}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Vessel Contact: {vessel.vesselContact || "—"}
                       </p>
                     </div>
 

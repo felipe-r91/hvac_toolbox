@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { InputField } from "./InputField";
-import { type Vessel } from "../types/maintenance";
+import { type NewVesselPayload, type Vessel } from "../types/maintenance";
 
 type Props = {
   open: boolean;
@@ -9,23 +9,24 @@ type Props = {
   onClose: () => void;
   onSave: (payload: {
     id: string;
-    name: string;
-    imoNumber: string;
-    description: string;
-  }) => void;
+  } & NewVesselPayload) => void;
 };
 
 export function EditVesselModal({ open, vessel, onClose, onSave }: Props) {
   const [name, setName] = useState("");
   const [imoNumber, setImoNumber] = useState("");
-  const [description, setDescription] = useState("");
+  const [vesselType, setVesselType] = useState("");
+  const [ownerCustomer, setOwnerCustomer] = useState("");
+  const [vesselContact, setVesselContact] = useState("");
 
   useEffect(() => {
     if (!vessel) return;
 
     setName(vessel.name);
     setImoNumber(vessel.imoNumber);
-    setDescription(vessel.description || "");
+    setVesselType(vessel.vesselType || "");
+    setOwnerCustomer(vessel.ownerCustomer || "");
+    setVesselContact(vessel.vesselContact || "");
   }, [vessel]);
 
   return (
@@ -44,17 +45,29 @@ export function EditVesselModal({ open, vessel, onClose, onSave }: Props) {
         />
 
         <label className="block">
-  <span className="mb-1 block text-xs font-medium text-slate-600">
-    Description
-  </span>
+          <span className="mb-1 block text-xs font-medium text-slate-600">
+            Vessel Type
+          </span>
 
-  <textarea
-    value={description}
-    onChange={(e) => setDescription(e.target.value)}
-    rows={3}
-    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2 text-base outline-none"
-  />
-</label>
+          <textarea
+            value={vesselType}
+            onChange={(e) => setVesselType(e.target.value)}
+            rows={3}
+            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-2 text-base outline-none"
+          />
+        </label>
+
+        <InputField
+          label="Owner/Customer"
+          value={ownerCustomer}
+          onChange={setOwnerCustomer}
+        />
+
+        <InputField
+          label="Vessel Contact"
+          value={vesselContact}
+          onChange={setVesselContact}
+        />
 
         <button
           type="button"
@@ -65,7 +78,9 @@ export function EditVesselModal({ open, vessel, onClose, onSave }: Props) {
               id: vessel.id,
               name: name.trim(),
               imoNumber: imoNumber.trim(),
-              description: description.trim(),
+              vesselType: vesselType.trim(),
+              ownerCustomer: ownerCustomer.trim(),
+              vesselContact: vesselContact.trim(),
             });
 
             onClose();

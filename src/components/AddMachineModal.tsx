@@ -11,13 +11,12 @@ type Props = {
 
 export function AddMachineModal({ open, onClose, vessels, onSubmit }: Props) {
   return (
-    <Modal title="Add machine" open={open} onClose={onClose}>
+    <Modal title="Add machine" open={open} onClose={onClose} size="wide">
       <MachineForm
         vessels={vessels}
         onSubmit={(payload) => {
           onSubmit(payload);
           onClose();
-          console.log(payload)
         }}
       />
     </Modal>

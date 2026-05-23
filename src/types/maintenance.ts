@@ -62,6 +62,12 @@ export type MachineMeta = {
   serialNumber: string;
   type: string;
   starterType: string;
+  refrigerant?: string;
+  oilType?: string;
+  controlSystem?: string;
+  softwareVersion?: string;
+  compressorType?: string;
+  mfg?: string;
   operatingStatus?: "online" | "down";
   downtimeReason?: string;
   failureComponent?: FailureComponent;
@@ -97,14 +103,18 @@ export type Vessel = {
   id: string;
   name: string;
   imoNumber: string;
-  description?: string;
+  vesselType?: string;
+  ownerCustomer?: string;
+  vesselContact?: string;
   machines: MachinePlan[];
 };
 
 export type NewVesselPayload = {
   name: string;
   imoNumber: string;
-  description: string;
+  vesselType: string;
+  ownerCustomer: string;
+  vesselContact: string;
 };
 
 export type NewMachinePayload = {
@@ -115,6 +125,12 @@ export type NewMachinePayload = {
   serialNumber: string;
   type: string;
   starterType: string;
+  refrigerant: string;
+  oilType: string;
+  controlSystem: string;
+  softwareVersion: string;
+  compressorType: string;
+  mfg: string;
 };
 
 export type MaintenanceReport = {
@@ -240,7 +256,9 @@ export type FleetSyncPayload = {
     id: string;
     name: string;
     imoNumber: string;
-    description: string;
+    vesselType: string;
+    ownerCustomer: string;
+    vesselContact: string;
     machines: {
       id: string;
       location: string;
@@ -249,6 +267,12 @@ export type FleetSyncPayload = {
       serialNumber: string;
       type: string;
       starterType: string;
+      refrigerant: string;
+      oilType: string;
+      controlSystem: string;
+      softwareVersion: string;
+      compressorType: string;
+      mfg: string;
     }[];
   }[];
 };

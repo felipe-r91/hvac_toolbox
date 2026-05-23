@@ -11,6 +11,12 @@ type BackendMachine = {
   serialNumber: string;
   type: string;
   starterType: string;
+  refrigerant?: string;
+  oilType?: string;
+  controlSystem?: string;
+  softwareVersion?: string;
+  compressorType?: string;
+  mfg?: string;
   machinePhotoId?: string;
   machinePhotoPreviewUrl?: string;
 };
@@ -19,7 +25,10 @@ type BackendVessel = {
   id: string;
   name: string;
   imoNumber: string;
-  description?: string;
+  vesselType?: string;
+  ownerCustomer?: string;
+  ownerCostumer?: string;
+  vesselContact?: string;
   machines: BackendMachine[];
 };
 
@@ -125,7 +134,9 @@ export async function downloadFleetRegistry(): Promise<Vessel[]> {
     id: vessel.id,
     name: vessel.name,
     imoNumber: vessel.imoNumber,
-    description: vessel.description || "",
+    vesselType: vessel.vesselType || "",
+    ownerCustomer: vessel.ownerCustomer || vessel.ownerCostumer || "",
+    vesselContact: vessel.vesselContact || "",
     machines: vessel.machines.map((machine) => {
       const entry = plansByMachineId.get(machine.id);
 
@@ -138,6 +149,12 @@ export async function downloadFleetRegistry(): Promise<Vessel[]> {
           serialNumber: machine.serialNumber,
           type: machine.type,
           starterType: machine.starterType,
+          refrigerant: machine.refrigerant || "",
+          oilType: machine.oilType || "",
+          controlSystem: machine.controlSystem || "",
+          softwareVersion: machine.softwareVersion || "",
+          compressorType: machine.compressorType || "",
+          mfg: machine.mfg || "",
           operatingStatus: "online",
           downtimeReason: "",
           failureComponent: undefined,

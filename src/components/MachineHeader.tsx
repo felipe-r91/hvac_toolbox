@@ -2,9 +2,9 @@ import { type MachineMeta } from "../types/maintenance";
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+    <div className="min-w-0 rounded-2xl bg-slate-50 px-3 py-2">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 font-medium text-slate-900">{value || "—"}</div>
+      <div className="mt-1 break-words font-medium text-slate-900">{value || "—"}</div>
     </div>
   );
 }
@@ -22,13 +22,19 @@ export function MachineHeader({ machine }: { machine: MachineMeta }) {
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 text-sm lg:grid-cols-3">
         <Info label="Location" value={machine.location} />
         <Info label="Tag" value={machine.tag} />
         <Info label="Model" value={machine.model} />
         <Info label="Starter Type" value={machine.starterType} />
         <Info label="Serial N." value={machine.serialNumber} />
         <Info label="Type" value={machine.type} />
+        <Info label="Refrigerant" value={machine.refrigerant || ""} />
+        <Info label="Oil Type" value={machine.oilType || ""} />
+        <Info label="Control System" value={machine.controlSystem || ""} />
+        <Info label="Software Version" value={machine.softwareVersion || ""} />
+        <Info label="Compressor Type" value={machine.compressorType || ""} />
+        <Info label="MFG" value={machine.mfg || ""} />
       </div>
     </section>
   );

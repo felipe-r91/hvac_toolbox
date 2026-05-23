@@ -40,7 +40,7 @@ export function MachineViewPage({ vessels }: Props) {
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Machine</h2>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3">
             <InfoCard label="Ship" value={vessel.name} />
             <InfoCard label="Tag" value={plan.machine.tag} />
             <InfoCard label="Location" value={plan.machine.location} />
@@ -48,6 +48,12 @@ export function MachineViewPage({ vessels }: Props) {
             <InfoCard label="Starter Type" value={plan.machine.starterType} />
             <InfoCard label="Type" value={plan.machine.type} />
             <InfoCard label="Serial Number" value={plan.machine.serialNumber || "—"} />
+            <InfoCard label="Refrigerant" value={plan.machine.refrigerant || "—"} />
+            <InfoCard label="Oil Type" value={plan.machine.oilType || "—"} />
+            <InfoCard label="Control System" value={plan.machine.controlSystem || "—"} />
+            <InfoCard label="Software Version" value={plan.machine.softwareVersion || "—"} />
+            <InfoCard label="Compressor Type" value={plan.machine.compressorType || "—"} />
+            <InfoCard label="MFG" value={plan.machine.mfg || "—"} />
             <InfoCard label="Task Template Size" value={`${plan.tasks.length} tasks`} />
           </div>
         </section>
@@ -91,9 +97,9 @@ export function MachineViewPage({ vessels }: Props) {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+    <div className="min-w-0 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
       <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className="mt-1 text-sm text-slate-900">{value}</div>
+      <div className="mt-1 break-words text-sm text-slate-900">{value}</div>
     </div>
   );
 }
