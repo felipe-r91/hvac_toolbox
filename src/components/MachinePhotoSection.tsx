@@ -1,5 +1,10 @@
 import { useRef } from "react";
-import { IoImageOutline, IoTrashOutline } from "react-icons/io5";
+import {
+  IoCameraOutline,
+  IoImageOutline,
+  IoImagesOutline,
+  IoTrashOutline,
+} from "react-icons/io5";
 
 type Props = {
   label: string;
@@ -18,10 +23,16 @@ export function MachinePhotoSection({
   onDeletePhoto,
   onPick,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   // Machine identification photo: only one picture is allowed
   const previewUrl = previewUrls[0] || null;
+
+  const handlePick = (file?: File) => {
+    if (!file) return;
+    onPick(file);
+  };
 
   return (
     <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
@@ -37,8 +48,7 @@ export function MachinePhotoSection({
 
       <div className="overflow-hidden rounded-2xl">
         <div
-          onClick={() => inputRef.current?.click()}
-          className="flex h-72 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50"
+          className="flex h-72 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50"
         >
           {previewUrl ? (
             <img
@@ -49,43 +59,65 @@ export function MachinePhotoSection({
           ) : (
             <div className="flex flex-col items-center">
               <IoImageOutline size={100} className="text-slate-300" />
-              <div className="text-sm text-slate-400">Tap to take photo</div>
+              <div className="text-sm text-slate-400">No photo selected</div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="mt-4 flex gap-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
         >
-          {previewUrl ? "Replace photo" : "Take photo"}
+          <IoCameraOutline size={18} />
+          {previewUrl ? "Retake photo" : "Take photo"}
         </button>
 
-        {previewUrl && onDeletePhoto ? (
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-300"
+        >
+          <IoImagesOutline size={18} />
+          {previewUrl ? "Replace from gallery" : "Choose from gallery"}
+        </button>
+      </div>
+
+      {previewUrl && onDeletePhoto ? (
+        <div className="mt-3 flex">
           <button
             type="button"
             onClick={() => onDeletePhoto(previewUrl)}
-            className="flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200"
             aria-label="Delete photo"
           >
             <IoTrashOutline size={20} />
+            Delete photo
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          onPick(file);
+          handlePick(e.target.files?.[0]);
+          e.currentTarget.value = "";
+        }}
+      />
+
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          handlePick(e.target.files?.[0]);
           e.currentTarget.value = "";
         }}
       />

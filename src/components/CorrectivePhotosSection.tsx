@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { IoCameraOutline, IoTrashOutline } from "react-icons/io5";
+import { IoCameraOutline, IoImagesOutline, IoTrashOutline } from "react-icons/io5";
 import { type CorrectivePhoto } from "../types/maintenance";
 
 type Props = {
@@ -15,7 +15,13 @@ export function CorrectivePhotosSection({
   onUpdateCaption,
   onDeletePhoto,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePick = (file?: File) => {
+    if (!file) return;
+    onAddPhoto(file);
+  };
 
   return (
     <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
@@ -32,25 +38,45 @@ export function CorrectivePhotosSection({
         </span>
       </div>
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
-      >
-        <IoCameraOutline size={18} />
-        Add photo
-      </button>
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
+        >
+          <IoCameraOutline size={18} />
+          Take photo
+        </button>
+
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-300"
+        >
+          <IoImagesOutline size={18} />
+          Choose from gallery
+        </button>
+      </div>
 
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          onAddPhoto(file);
+          handlePick(e.target.files?.[0]);
+          e.currentTarget.value = "";
+        }}
+      />
+
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          handlePick(e.target.files?.[0]);
           e.currentTarget.value = "";
         }}
       />

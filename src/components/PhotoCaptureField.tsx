@@ -1,5 +1,11 @@
 import { useRef, useState } from "react";
-import { IoClose, IoImageOutline, IoTrashOutline } from "react-icons/io5";
+import {
+  IoCameraOutline,
+  IoClose,
+  IoImageOutline,
+  IoImagesOutline,
+  IoTrashOutline,
+} from "react-icons/io5";
 
 type Props = {
   label: string;
@@ -18,8 +24,14 @@ export function PhotoCaptureField({
   onDeletePhoto,
   onPick,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null);
+
+  const handlePick = (file?: File) => {
+    if (!file) return;
+    onPick(file);
+  };
 
   return (
     <>
@@ -83,38 +95,56 @@ export function PhotoCaptureField({
               ))}
             </div>
           ) : (
-            <div
-              onClick={() => inputRef.current?.click()}
-              className="flex h-40 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400"
-            >
+            <div className="flex h-40 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
               <div className="flex flex-col items-center">
                 <div className="text-slate-300">
                   <IoImageOutline size={100} />
                 </div>
-                <div className="mt-2 text-sm text-slate-400">Tap to take photo</div>
+                <div className="mt-2 text-sm text-slate-400">No photo selected</div>
               </div>
             </div>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
-        >
-          {previewUrls.length > 0 ? "Add another photo" : "Take photo"}
-        </button>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white"
+          >
+            <IoCameraOutline size={18} />
+            {previewUrls.length > 0 ? "Take another photo" : "Take photo"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-slate-700 ring-1 ring-slate-300"
+          >
+            <IoImagesOutline size={18} />
+            Choose from gallery
+          </button>
+        </div>
 
         <input
-          ref={inputRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            onPick(file);
+            handlePick(e.target.files?.[0]);
+            e.currentTarget.value = "";
+          }}
+        />
+
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            handlePick(e.target.files?.[0]);
             e.currentTarget.value = "";
           }}
         />
