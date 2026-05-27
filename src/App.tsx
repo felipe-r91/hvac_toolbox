@@ -552,7 +552,7 @@ export default function App() {
       machineStarterType: plan.machine.starterType,
       completedAt,
       overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
-      reportCategory: "health_check",
+      reportCategory: "machine_maintenance",
       downtimeReason: plan.machine.downtimeReason || "",
       failureComponent: plan.machine.failureComponent,
       failureMode: plan.machine.failureMode,
@@ -648,7 +648,7 @@ export default function App() {
     return {
       reportId,
       linkedServiceReportDraftId: serviceReportDraftId,
-      redirectedTo: shouldCreateServiceReport ? "service_report" : "health_check",
+      redirectedTo: shouldCreateServiceReport ? "service_report" : "machine_maintenance",
     };
   };
 
@@ -835,7 +835,7 @@ export default function App() {
     }));
   };
 
-  const deletePreventiveReport = (reportId: string) => {
+  const deleteMachineMaintenanceReport = (reportId: string) => {
     setFleet((current) => ({
       ...current,
       reports: current.reports.filter((report) => report.id !== reportId),
@@ -871,7 +871,7 @@ export default function App() {
       let completedItems = 0;
 
       for (const report of pendingReports) {
-        await syncPreventiveReport(report.id, (info) => {
+        await syncMachineMaintenanceReport(report.id, (info) => {
           const itemBase = completedItems / totalItems;
           const itemWeight = 1 / totalItems;
           const overallPercent = Math.round(
@@ -955,14 +955,14 @@ export default function App() {
     }
   };
 
-  const syncPreventiveReport = async (
+  const syncMachineMaintenanceReport = async (
     reportId: string,
     onProgress?: (info: SyncProgressInfo) => void
   ) => {
     const report = fleet.reports.find((item) => item.id === reportId);
 
     if (!report) {
-      alert("Preventive report not found.");
+      alert("Machine maintenance report not found.");
       return;
     }
 
@@ -973,24 +973,24 @@ export default function App() {
       reportProgress(onProgress, 8, `Syncing machine photo for ${report.machineTag}...`);
       await syncSharedMachinePhoto(report.machineId);
 
-      reportProgress(onProgress, 10, `Sending preventive report for ${report.machineTag}...`);
-      await postPreventiveReport(report);
+      reportProgress(onProgress, 10, `Sending machine maintenance report for ${report.machineTag}...`);
+      await postMachineMaintenanceReport(report);
 
       reportProgress(onProgress, 50, `Uploading task photos for ${report.machineTag}...`);
-      const uploadedTaskPhotos = await uploadPreventiveTaskPhotos(report, (percent, label) => {
+      const uploadedTaskPhotos = await uploadMachineMaintenanceTaskPhotos(report, (percent, label) => {
         reportProgress(onProgress, 50 + Math.round(percent * 0.35), label);
       });
 
       reportProgress(onProgress, 90, `Cleaning local photo data for ${report.machineTag}...`);
-      await cleanupPreventiveReportPhotos(report, uploadedTaskPhotos);
+      await cleanupMachineMaintenanceReportPhotos(report, uploadedTaskPhotos);
 
       markReportSynced(reportId);
-      reportProgress(onProgress, 100, `Preventive report for ${report.machineTag} synced.`);
+      reportProgress(onProgress, 100, `Machine maintenance report for ${report.machineTag} synced.`);
 
-      alert("Preventive report synced successfully.");
+      alert("Machine maintenance report synced successfully.");
     } catch (error) {
       console.error(error);
-      alert("Failed to sync preventive report.");
+      alert("Failed to sync machine maintenance report.");
       throw error;
     }
   };
@@ -1248,7 +1248,7 @@ export default function App() {
     return response.json();
   };
 
-  const postPreventiveReport = async (report: MaintenanceReport) => {
+  const postMachineMaintenanceReport = async (report: MaintenanceReport) => {
     const response = await fetch(`${API_BASE_URL}/api/sync/preventive`, {
       method: "POST",
       headers: {
@@ -1259,7 +1259,7 @@ export default function App() {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Preventive sync failed: ${text}`);
+      throw new Error(`Machine maintenance sync failed: ${text}`);
     }
 
     return response.json();
@@ -1388,7 +1388,7 @@ export default function App() {
     });
   };
 
-  const uploadPreventiveTaskPhotos = async (
+  const uploadMachineMaintenanceTaskPhotos = async (
     report: MaintenanceReport,
     onProgress?: (percent: number, label: string) => void
   ) => {
@@ -1451,7 +1451,7 @@ export default function App() {
     return uploadedPhotos;
   };
 
-  const cleanupPreventiveReportPhotos = async (
+  const cleanupMachineMaintenanceReportPhotos = async (
     report: MaintenanceReport,
     uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
   ) => {
@@ -1902,11 +1902,11 @@ export default function App() {
               cfrDrafts={fleet.cfrDrafts}
               dailyDrafts={fleet.dailyDrafts}
               onSyncAll={syncAllPendingItems}
-              onSyncReport={syncPreventiveReport}
+              onSyncReport={syncMachineMaintenanceReport}
               onSyncServiceReportDraft={syncServiceReportDraft}
               onSyncCfrDraft={syncCfrDraft}
               onSyncDailyDraft={syncDailyDraft}
-              onDeleteReport={deletePreventiveReport}
+              onDeleteReport={deleteMachineMaintenanceReport}
               onDeleteServiceReportDraft={deleteServiceReportDraft}
               onDeleteCfrDraft={deleteCfrDraft}
               onDeleteDailyDraft={deleteDailyDraft}

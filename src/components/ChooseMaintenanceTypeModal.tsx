@@ -7,12 +7,12 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onChooseCfr: () => void;
-  onChoosePreventive: () => void;
+  onChooseMachineMaintenance: () => void;
   onChooseServiceReport: () => void;
   onChooseDaily: () => void;
 };
 
-export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoosePreventive, onChooseServiceReport, onChooseDaily }: Props) {
+export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChooseMachineMaintenance, onChooseServiceReport, onChooseDaily }: Props) {
   return (
     <Modal title="Select type" open={open} onClose={onClose}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -29,7 +29,7 @@ export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoos
         </button>
         <button
           type="button"
-          onClick={onChoosePreventive}
+          onClick={onChooseMachineMaintenance}
           className="rounded-3xl bg-slate-100 px-4 py-6 text-left ring-1 ring-slate-200"
         >
           <div className="flex gap-6">

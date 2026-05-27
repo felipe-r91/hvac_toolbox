@@ -78,7 +78,7 @@ export function ShipMachinesPage({ vessels }: Props) {
           setModalOpen(false);
           setSelectedMachine(null);
         }}
-        onChoosePreventive={() => {
+        onChooseMachineMaintenance={() => {
           if (!selectedMachine) return;
 
           navigate(

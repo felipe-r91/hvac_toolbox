@@ -25,7 +25,7 @@ function statusBadge(status: "online" | "down") {
 
 function reportCategoryBadge(category: ReportCategory) {
   switch (category) {
-    case "health_check":
+    case "machine_maintenance":
       return "bg-blue-100 text-blue-800";
     case "service_report":
       return "bg-yellow-100 text-yellow-800";
@@ -40,8 +40,8 @@ function reportCategoryBadge(category: ReportCategory) {
 
 function reportCategoryLabel(category: ReportCategory) {
   switch (category) {
-    case "health_check":
-      return "Health Check";
+    case "machine_maintenance":
+      return "Machine Maintenance";
     case "service_report":
       return "Service Report";
     case "cfr":
@@ -57,11 +57,11 @@ type MachineHistoryItem =
   | {
       id: string;
       source: "maintenance_report";
-      reportCategory: "health_check";
+      reportCategory: "machine_maintenance";
       date: string;
       status: "online" | "down";
       label: string;
-      preventiveReport: MaintenanceReport;
+      maintenanceReport: MaintenanceReport;
     }
   | {
       id: string;
@@ -111,7 +111,7 @@ export function ReportsPage({
 
       <section className="space-y-4">
         {vessels.map((vessel) => {
-          const vesselPreventiveReports = reports.filter(
+          const vesselMaintenanceReports = reports.filter(
             (report) => report.vesselId === vessel.id
           );
 
@@ -128,7 +128,7 @@ export function ReportsPage({
           );
 
           const vesselHistoryCount =
-            vesselPreventiveReports.length +
+            vesselMaintenanceReports.length +
             vesselServiceReportDrafts.length +
             vesselCfrDrafts.length +
             vesselDailyDrafts.length;
@@ -157,17 +157,17 @@ export function ReportsPage({
 
               <div className="mt-4 space-y-3">
                 {vessel.machines.map((plan) => {
-                  const machinePreventiveReports = vesselPreventiveReports
+                  const machineMaintenanceReports = vesselMaintenanceReports
                     .filter((report) => report.machineId === plan.machine.id)
                     .map(
                       (report): MachineHistoryItem => ({
                         id: report.id,
                         source: "maintenance_report",
-                        reportCategory: "health_check",
+                        reportCategory: "machine_maintenance",
                         date: report.completedAt,
                         status: report.overallStatus,
                         label: new Date(report.completedAt).toLocaleString(),
-                        preventiveReport: report,
+                        maintenanceReport: report,
                       })
                     );
 
@@ -215,7 +215,7 @@ export function ReportsPage({
                     );
 
                   const machineHistory = [
-                    ...machinePreventiveReports,
+                    ...machineMaintenanceReports,
                     ...machineServiceReportDrafts,
                     ...machineCfrDrafts,
                     ...machineDailyDrafts,

@@ -1,4 +1,4 @@
-import { type FleetData, type ServiceReportDraft } from "../types/maintenance";
+import { type FleetData, type MaintenanceReport, type ServiceReportDraft } from "../types/maintenance";
 import { emptyFleet } from "../data/emptyFleet";
 
 const STORAGE_KEY = "hvac-fleet-data-v3";
@@ -14,6 +14,16 @@ function normalizeServiceReportDraft(draft: Record<string, unknown>): ServiceRep
   } as ServiceReportDraft;
 }
 
+function normalizeMaintenanceReport(report: Record<string, unknown>): MaintenanceReport {
+  return {
+    ...report,
+    reportCategory:
+      report.reportCategory === "health_check"
+        ? "machine_maintenance"
+        : report.reportCategory || "machine_maintenance",
+  } as MaintenanceReport;
+}
+
 export function loadFleet(): FleetData {
   const raw = localStorage.getItem(STORAGE_KEY);
 
@@ -27,7 +37,11 @@ export function loadFleet(): FleetData {
 
     return {
       vessels: Array.isArray(parsed.vessels) ? parsed.vessels : [],
-      reports: Array.isArray(parsed.reports) ? parsed.reports : [],
+      reports: Array.isArray(parsed.reports)
+        ? parsed.reports.map((report) =>
+            normalizeMaintenanceReport(report as Record<string, unknown>)
+          )
+        : [],
       photos: Array.isArray(parsed.photos) ? parsed.photos : [],
       serviceReportDrafts: storedServiceReportDrafts.map((draft) =>
         normalizeServiceReportDraft(draft as Record<string, unknown>)

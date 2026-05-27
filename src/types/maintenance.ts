@@ -52,7 +52,7 @@ export type FailureMode =
   | "other";
 
 
-export type ReportCategory = "health_check" | "service_report" | "cfr" | "daily";
+export type ReportCategory = "machine_maintenance" | "service_report" | "cfr" | "daily";
 
 export type MachineMeta = {
   id: string;
@@ -291,7 +291,7 @@ export type FailureCode =
   export type FinishMaintenanceResult = {
   reportId: string;
   linkedServiceReportDraftId?: string;
-  redirectedTo: "health_check" | "service_report";
+  redirectedTo: "machine_maintenance" | "service_report";
 };
 
 export type CfrDraft = {

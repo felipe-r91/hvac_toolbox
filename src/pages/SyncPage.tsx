@@ -133,7 +133,7 @@ export function SyncPage({
   const handleSyncReport = async (reportId: string, machineTag: string) => {
     setSyncLoading(true);
     setSyncProgress(0);
-    setSyncLabel(`Preparing health check for ${machineTag}...`);
+    setSyncLabel(`Preparing machine maintenance for ${machineTag}...`);
 
     try {
       await onSyncReport(reportId, ({ percent, label }) => {
@@ -379,7 +379,7 @@ export function SyncPage({
 
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-lg font-semibold text-slate-900">
-          Health checks pending upload
+          Machine maintenance reports pending upload
         </h2>
 
         <div className="mt-4 space-y-3">
@@ -396,7 +396,7 @@ export function SyncPage({
                         {report.machineTag}
                       </h3>
                       <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
-                        Health Check
+                        Machine Maintenance
                       </span>
                     </div>
 
@@ -424,7 +424,7 @@ export function SyncPage({
                     <button
                       type="button"
                       onClick={() => {
-                        const confirmed = window.confirm("Delete this health check?");
+                        const confirmed = window.confirm("Delete this machine maintenance report?");
                         if (confirmed) onDeleteReport(report.id);
                       }}
                       disabled={updateLoading || syncLoading}
@@ -438,7 +438,7 @@ export function SyncPage({
             ))
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
-              No health checks pending upload.
+              No machine maintenance reports pending upload.
             </div>
           )}
         </div>
