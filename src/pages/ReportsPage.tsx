@@ -59,7 +59,7 @@ type MachineHistoryItem =
       source: "maintenance_report";
       reportCategory: "machine_maintenance";
       date: string;
-      status: "online" | "down";
+      status?: "online" | "down";
       label: string;
       maintenanceReport: MaintenanceReport;
     }
@@ -165,7 +165,6 @@ export function ReportsPage({
                         source: "maintenance_report",
                         reportCategory: "machine_maintenance",
                         date: report.completedAt,
-                        status: report.overallStatus,
                         label: new Date(report.completedAt).toLocaleString(),
                         maintenanceReport: report,
                       })
@@ -225,6 +224,7 @@ export function ReportsPage({
                   );
 
                   const latestItem = machineHistory[0] || null;
+                  const latestStatus = latestItem?.status;
 
                   return (
                     <details
@@ -248,12 +248,12 @@ export function ReportsPage({
 
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${
-                              latestItem
-                                ? statusBadge(latestItem.status)
+                              latestStatus
+                                ? statusBadge(latestStatus)
                                 : "bg-slate-100 text-slate-600 ring-slate-200"
                             }`}
                           >
-                            {latestItem ? latestItem.status : "no report"}
+                            {latestStatus || (latestItem ? "report" : "no report")}
                           </span>
                         </div>
                       </summary>

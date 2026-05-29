@@ -2,7 +2,6 @@ import { useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import {
   type MachinePlan,
-  type MachineMeta,
   type MaintenanceTask,
   type Vessel,
 } from "../types/maintenance";
@@ -10,8 +9,6 @@ import { groupTasks } from "../utils/groupTasks";
 import { MachineHeader } from "../components/MachineHeader";
 import { SummaryCards } from "../components/SummaryCards";
 import { CategorySection } from "../components/CategorySection";
-import { MachineStatusField } from "../components/MachineStatusField";
-import { MachineFailureField } from "../components/MachineFailureField";
 import { MachinePhotoSection } from "../components/MachinePhotoSection";
 
 type Props = {
@@ -21,7 +18,6 @@ type Props = {
   onSearchChange: (value: string) => void;
   onTogglePendingOnly: () => void;
   onUpdateTask: (task: MaintenanceTask) => void;
-  onUpdateMachineField: (field: keyof MachineMeta, value: string) => void;
   onFinishMaintenance: (vesselId: string, machineId: string) => void;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (taskId: string, file: File) => void;
@@ -40,7 +36,6 @@ export function MachineMaintenancePage({
   onSearchChange,
   onTogglePendingOnly,
   onUpdateTask,
-  onUpdateMachineField,
   onFinishMaintenance,
   onAddMachinePhoto,
   onAddTaskPhoto,
@@ -64,19 +59,6 @@ export function MachineMaintenancePage({
 
   const grouped = groupTasks(plan.tasks, search, pendingOnly);
 
-  const markPendingTasksAsSkipped = () => {
-    plan.tasks.forEach((task) => {
-      if (!task.checked && task.status === "pending") {
-        onUpdateTask({
-          ...task,
-          checked: true,
-          status: "skipped",
-          completedAt: new Date().toISOString(),
-        });
-      }
-    });
-  };
-
   const machinePhotoCount = getMachinePhotoCount(machineId);
   const machinePhotoValid = machinePhotoCount > 0;
 
@@ -86,22 +68,12 @@ export function MachineMaintenancePage({
     return !needsPhoto || taskPhotoCount > 0;
   });
 
-  const canFinish =
-    plan.machine.operatingStatus === "down"
-      ? Boolean(
-        machinePhotoValid &&
-        plan.machine.failureComponent &&
-        plan.machine.failureMode &&
-        plan.machine.failureCode &&
-        (plan.machine.failureNotes || plan.machine.downtimeReason) &&
-        allRequiredTaskPhotosValid
-      )
-      : Boolean(
-        machinePhotoValid &&
-        plan.tasks.length > 0 &&
-        plan.tasks.every((task) => task.checked) &&
-        allRequiredTaskPhotosValid
-      );
+  const canFinish = Boolean(
+    machinePhotoValid &&
+    plan.tasks.length > 0 &&
+    plan.tasks.every((task) => task.checked) &&
+    allRequiredTaskPhotosValid
+  );
 
   return (
     <section className="space-y-4">
@@ -117,53 +89,6 @@ export function MachineMaintenancePage({
         onDeletePhoto={onDeleteMachinePhoto}
         onPick={(file) => onAddMachinePhoto(machineId, file)}
       />
-
-      <MachineStatusField
-        value={plan.machine.operatingStatus || "online"}
-        downtimeReason={plan.machine.downtimeReason || ""}
-        onStatusChange={(value) => {
-          onUpdateMachineField("operatingStatus", value);
-
-          if (value === "online") {
-            onUpdateMachineField("downtimeReason", "");
-            onUpdateMachineField("failureComponent", "");
-            onUpdateMachineField("failureMode", "");
-            onUpdateMachineField("failureCode", "");
-            onUpdateMachineField("failureNotes", "");
-          }
-        }}
-        onReasonChange={(value) => onUpdateMachineField("downtimeReason", value)}
-      />
-
-      <MachineFailureField
-        operatingStatus={plan.machine.operatingStatus || "online"}
-        failureComponent={plan.machine.failureComponent || ""}
-        failureMode={plan.machine.failureMode || ""}
-        failureCode={plan.machine.failureCode || ""}
-        failureNotes={plan.machine.failureNotes || ""}
-        onFailureComponentChange={(value) =>
-          onUpdateMachineField("failureComponent", value)
-        }
-        onFailureModeChange={(value) =>
-          onUpdateMachineField("failureMode", value)
-        }
-        onFailureCodeChange={(value) =>
-          onUpdateMachineField("failureCode", value)
-        }
-        onFailureNotesChange={(value) =>
-          onUpdateMachineField("failureNotes", value)
-        }
-      />
-
-      {plan.machine.operatingStatus === "down" ? (
-        <button
-          type="button"
-          onClick={markPendingTasksAsSkipped}
-          className="w-full rounded-2xl bg-orange-100 px-4 py-3 text-sm font-medium text-orange-800 ring-1 ring-orange-200"
-        >
-          Mark remaining pending tasks as skipped
-        </button>
-      ) : null}
 
       <SummaryCards tasks={plan.tasks} />
 

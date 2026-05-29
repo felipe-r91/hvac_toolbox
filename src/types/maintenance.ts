@@ -145,7 +145,6 @@ export type MaintenanceReport = {
   machineLocation: string;
   completedAt: string;
   machineStarterType: string;
-  overallStatus: "online" | "down";
   reportCategory: ReportCategory;
   downtimeReason?: string;
   failureComponent?: FailureComponent;
@@ -290,8 +289,6 @@ export type FailureCode =
 
   export type FinishMaintenanceResult = {
   reportId: string;
-  linkedServiceReportDraftId?: string;
-  redirectedTo: "machine_maintenance" | "service_report";
 };
 
 export type CfrDraft = {

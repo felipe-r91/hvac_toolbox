@@ -77,41 +77,6 @@ function getTaskPhotos(taskId: string) {
           Completed at: {new Date(report.completedAt).toLocaleString()}
         </p>
 
-        <div className="flex">
-          <p className="my-2 mr-2 text-sm font-medium text-slate-700">
-            Overall status:
-          </p>
-          <p
-            className={`my-2 text-sm font-medium ${
-              report.overallStatus === "down" ? "text-red-500" : "text-green-500"
-            }`}
-          >
-            {report.overallStatus.toUpperCase()}
-          </p>
-        </div>
-
-        {report.overallStatus === "down" ? (
-          <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">Failure summary</h2>
-            <div className="mt-3 space-y-2 text-sm text-slate-700">
-              <p>
-                <strong>Component:</strong> {report.failureComponent || "—"}
-              </p>
-              <p>
-                <strong>Failure mode:</strong> {report.failureMode || "—"}
-              </p>
-              <p>
-                <strong>Failure code:</strong> {report.failureCode || "—"}
-              </p>
-              <p>
-                <strong>Downtime reason:</strong> {report.downtimeReason || "—"}
-              </p>
-              <p>
-                <strong>Notes:</strong> {report.failureNotes || "—"}
-              </p>
-            </div>
-          </section>
-        ) : null}
       </section>
 
       {report.linkedServiceReportDraftId ? (

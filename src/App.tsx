@@ -6,7 +6,6 @@ import { downloadFleetRegistry } from "./api/fleetRegistryApi";
 import { mergeFleetRegistry } from "./utils/mergeFleetRegistry";
 import {
   type FleetData,
-  type MachineMeta,
   type MaintenanceReport,
   type MaintenanceTask,
   type NewMachinePayload,
@@ -55,7 +54,6 @@ function MachineMaintenanceRoute({
   onSearchChange,
   onTogglePendingOnly,
   onUpdateTask,
-  onUpdateMachineField,
   onAddMachinePhoto,
   onAddTaskPhoto,
   onDeleteMachinePhoto,
@@ -70,12 +68,6 @@ function MachineMaintenanceRoute({
   onSearchChange: (value: string) => void;
   onTogglePendingOnly: () => void;
   onUpdateTask: (vesselId: string, machineId: string, task: MaintenanceTask) => void;
-  onUpdateMachineField: (
-    vesselId: string,
-    machineId: string,
-    field: keyof MachineMeta,
-    value: string
-  ) => void;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
   onDeleteMachinePhoto: (machineId: string) => void;
@@ -114,9 +106,6 @@ function MachineMaintenanceRoute({
       onSearchChange={onSearchChange}
       onTogglePendingOnly={onTogglePendingOnly}
       onUpdateTask={(task) => onUpdateTask(vesselId, machineId, task)}
-      onUpdateMachineField={(field, value) =>
-        onUpdateMachineField(vesselId, machineId, field, value)
-      }
       onFinishMaintenance={onFinishMaintenance}
       onAddMachinePhoto={onAddMachinePhoto}
       onAddTaskPhoto={(taskId, file) => onAddTaskPhoto(machineId, taskId, file)}
@@ -137,12 +126,6 @@ function MachineMaintenanceRouteWithNavigation(props: {
   onSearchChange: (value: string) => void;
   onTogglePendingOnly: () => void;
   onUpdateTask: (vesselId: string, machineId: string, task: MaintenanceTask) => void;
-  onUpdateMachineField: (
-    vesselId: string,
-    machineId: string,
-    field: keyof MachineMeta,
-    value: string
-  ) => void;
   onCreateReport: (vesselId: string, machineId: string) => Promise<FinishMaintenanceResult | null>;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onAddTaskPhoto: (machineId: string, taskId: string, file: File) => void;
@@ -160,12 +143,6 @@ function MachineMaintenanceRouteWithNavigation(props: {
         const result = await props.onCreateReport(vesselId, machineId);
 
         if (!result) return;
-
-        if (result.redirectedTo === "service_report" && result.linkedServiceReportDraftId) {
-          alert("Machine marked as down. A linked service report was created automatically.");
-          navigate(`/service-reports/${result.linkedServiceReportDraftId}`);
-          return;
-        }
 
         navigate(`/reports/${result.reportId}`);
       }}
@@ -311,35 +288,6 @@ export default function App() {
             return {
               ...plan,
               tasks: plan.tasks.map((item) => (item.id === task.id ? task : item)),
-            };
-          }),
-        };
-      }),
-    }));
-  };
-
-  const updateMachineField = (
-    vesselId: string,
-    machineId: string,
-    field: keyof MachineMeta,
-    value: string
-  ) => {
-    setFleet((current) => ({
-      ...current,
-      vessels: current.vessels.map((vessel) => {
-        if (vessel.id !== vesselId) return vessel;
-
-        return {
-          ...vessel,
-          machines: vessel.machines.map((plan) => {
-            if (plan.machine.id !== machineId) return plan;
-
-            return {
-              ...plan,
-              machine: {
-                ...plan.machine,
-                [field]: value,
-              },
             };
           }),
         };
@@ -531,8 +479,6 @@ export default function App() {
 
     const completedAt = new Date().toISOString();
     const reportId = createId();
-    const shouldCreateServiceReport = plan.machine.operatingStatus === "down";
-    const serviceReportDraftId = shouldCreateServiceReport ? createId() : undefined;
 
     const faultCount = plan.tasks.filter((task) => task.status === "fault").length;
     const skippedCount = plan.tasks.filter((task) => task.status === "skipped").length;
@@ -551,7 +497,6 @@ export default function App() {
       machineLocation: plan.machine.location,
       machineStarterType: plan.machine.starterType,
       completedAt,
-      overallStatus: plan.machine.operatingStatus === "down" ? "down" : "online",
       reportCategory: "machine_maintenance",
       downtimeReason: plan.machine.downtimeReason || "",
       failureComponent: plan.machine.failureComponent,
@@ -562,31 +507,7 @@ export default function App() {
       skippedCount,
       tasks: plan.tasks.map((task) => ({ ...task })),
       synced: false,
-      linkedServiceReportDraftId: serviceReportDraftId,
     };
-
-    const linkedServiceReportDraft: ServiceReportDraft | null = shouldCreateServiceReport
-      ? {
-        id: serviceReportDraftId!,
-        vesselId: vessel.id,
-        vesselName: vessel.name,
-        machineId: plan.machine.id,
-        machineTag: plan.machine.tag,
-        machineModel: plan.machine.model,
-        machineType: plan.machine.type,
-        machineStarterType: plan.machine.starterType,
-        machineLocation: plan.machine.location,
-        createdAt: completedAt,
-        reportCategory: "service_report",
-        workPerformed: "",
-        recommendations: "",
-        furtherActionRequired: "",
-        machineReturnedToService: "no",
-        photos: [],
-        synced: false,
-        sourcePreventiveReportId: reportId,
-      }
-      : null;
 
     const resetTasks = plan.tasks.map((task) => ({
       ...task,
@@ -601,9 +522,6 @@ export default function App() {
     setFleet((current) => ({
       ...current,
       reports: [report, ...current.reports],
-      serviceReportDrafts: linkedServiceReportDraft
-        ? [linkedServiceReportDraft, ...current.serviceReportDrafts]
-        : current.serviceReportDrafts,
       photos: current.photos.map((photo) => {
         const isTaskPhotoForThisReport =
           photo.machineId === machineId &&
@@ -647,8 +565,6 @@ export default function App() {
 
     return {
       reportId,
-      linkedServiceReportDraftId: serviceReportDraftId,
-      redirectedTo: shouldCreateServiceReport ? "service_report" : "machine_maintenance",
     };
   };
 
@@ -1956,7 +1872,6 @@ export default function App() {
               onSearchChange={setSearch}
               onTogglePendingOnly={() => setPendingOnly((value) => !value)}
               onUpdateTask={updateTask}
-              onUpdateMachineField={updateMachineField}
               onCreateReport={createReport}
               onAddMachinePhoto={addMachinePhoto}
               onAddTaskPhoto={addTaskPhoto}
