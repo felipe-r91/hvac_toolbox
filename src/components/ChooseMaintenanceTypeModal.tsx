@@ -1,7 +1,8 @@
-import { RiAlarmWarningLine } from "react-icons/ri";
 import { Modal } from "./Modal";
 import { LiaListAltSolid } from "react-icons/lia";
-import { MdContentPasteSearch, MdHealthAndSafety, MdOutlineToday } from "react-icons/md";
+import { MdContentPasteSearch, MdOutlineToday } from "react-icons/md";
+import { LuWrench } from "react-icons/lu";
+import { PiHeartbeatBold } from "react-icons/pi";
 
 type Props = {
   open: boolean;
@@ -46,7 +47,7 @@ export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoos
           className="rounded-3xl bg-slate-100 px-4 py-6 text-left ring-1 ring-slate-200"
         >
           <div className="flex gap-6">
-            <MdHealthAndSafety size={28} />
+            <PiHeartbeatBold size={28} />
           <div className="mt-1 text-sm text-slate-500">Health Check.</div>
           </div>
         </button>
@@ -57,7 +58,7 @@ export function ChooseMaintenanceTypeModal({ open, onClose, onChooseCfr, onChoos
           className="rounded-3xl bg-slate-100 px-4 py-6 text-left ring-1 ring-slate-200"
         >
           <div className="flex gap-6">
-            <RiAlarmWarningLine size={28} />
+            <LuWrench size={28} />
           <div className="mt-1 text-sm text-slate-500">Service Report.</div>
           </div>
         </button>
