@@ -55,12 +55,6 @@ export function VesselsPage({ vessels, onEditVessel, onDeleteVessel }: Props) {
                       <p className="text-sm text-slate-500">
                         Vessel Type: {vessel.vesselType || "—"}
                       </p>
-                      <p className="text-sm text-slate-500">
-                        Owner/Customer: {vessel.ownerCustomer || "—"}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Vessel Contact: {vessel.vesselContact || "—"}
-                      </p>
                     </div>
 
                     <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
