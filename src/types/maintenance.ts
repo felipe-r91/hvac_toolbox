@@ -54,7 +54,12 @@ export type FailureMode =
   | "other";
 
 
-export type ReportCategory = "machine_maintenance" | "service_report" | "cfr" | "daily";
+export type ReportCategory =
+  | "machine_maintenance"
+  | "service_report"
+  | "health_check"
+  | "cfr"
+  | "daily";
 
 export type MachineMeta = {
   id: string;
@@ -158,7 +163,6 @@ export type MaintenanceReport = {
   machinePhotoIds?: string[];
   skippedCount?: number;
   synced?: boolean;
-  linkedServiceReportDraftId?: string;
 };
 
 export type FleetData = {
@@ -219,7 +223,6 @@ export type ServiceReportDraft = {
 
   photos: ReportPhoto[];
   synced?: boolean;
-  sourcePreventiveReportId?: string;
 };
 
 export type UploadedPhotoRecord = {

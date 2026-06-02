@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ReportPhotosSection } from "../components/ReportPhotosSection";
 import { MachineFailureField } from "../components/MachineFailureField";
@@ -21,7 +21,6 @@ type Props = {
   vessels: Vessel[];
   onSaveDraft: (draft: DailyDraft) => void;
   onDeleteDraft: (draftId: string) => void;
-  getExistingDraft: (machineId: string) => DailyDraft | null;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onDeleteMachinePhoto: (machineId: string) => void;
 };
@@ -30,11 +29,11 @@ export function DailyReportPage({
   vessels,
   onSaveDraft,
   onDeleteDraft,
-  getExistingDraft,
   onAddMachinePhoto,
   onDeleteMachinePhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
+  const navigate = useNavigate();
 
   const vessel = vessels.find((item) => item.id === vesselId);
   const plan = vessel?.machines.find((item) => item.machine.id === machineId);
@@ -71,11 +70,6 @@ export function DailyReportPage({
   };
 
   const [draft, setDraft] = useState<DailyDraft | null>(() => {
-    if (!vessel || !plan || !machineId) return null;
-
-    const existing = getExistingDraft(machineId);
-    if (existing) return { ...existing, photos: existing.photos || [] };
-
     return createEmptyDraft();
   });
 
@@ -189,14 +183,16 @@ export function DailyReportPage({
   };
 
   const saveDraftLocally = () => {
-    onSaveDraft({
+    const payload: DailyDraft = {
       ...draft,
       reportCategory: "daily",
       synced: false,
-    });
+    };
+
+    onSaveDraft(payload);
 
     alert("Daily report saved locally.");
-    setDraft(createEmptyDraft());
+    navigate(`/daily-reports/${payload.id}`);
   };
 
   const clearCurrentDraft = () => {

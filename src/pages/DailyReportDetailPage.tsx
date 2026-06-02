@@ -26,7 +26,7 @@ export function DailyReportDetailPage({ dailyDrafts }: Props) {
 
   return (
     <section className="space-y-4">
-        <BackButton />
+        <BackButton to="/vessels" />
 
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-wrap items-start justify-between gap-3">

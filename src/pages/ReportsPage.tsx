@@ -3,6 +3,7 @@ import {
   type CfrDraft,
   type ServiceReportDraft,
   type DailyDraft,
+  type HealthCheckDraft,
   type MaintenanceReport,
   type ReportCategory,
   type Vessel,
@@ -15,6 +16,7 @@ type Props = {
   serviceReportDrafts: ServiceReportDraft[];
   cfrDrafts: CfrDraft[];
   dailyDrafts: DailyDraft[];
+  healthCheckDrafts: HealthCheckDraft[];
 };
 
 function statusBadge(status: "online" | "down") {
@@ -29,6 +31,8 @@ function reportCategoryBadge(category: ReportCategory) {
       return "bg-blue-100 text-blue-800";
     case "service_report":
       return "bg-yellow-100 text-yellow-800";
+    case "health_check":
+      return "bg-emerald-100 text-emerald-800";
     case "cfr":
       return "bg-purple-100 text-purple-800";
     case "daily":
@@ -44,6 +48,8 @@ function reportCategoryLabel(category: ReportCategory) {
       return "Machine Maintenance";
     case "service_report":
       return "Service Report";
+    case "health_check":
+      return "Health Check";
     case "cfr":
       return "CFR";
     case "daily":
@@ -74,6 +80,15 @@ type MachineHistoryItem =
     }
   | {
       id: string;
+      source: "health_check_draft";
+      reportCategory: "health_check";
+      date: string;
+      status: "online" | "down";
+      label: string;
+      healthCheckDraft: HealthCheckDraft;
+    }
+  | {
+      id: string;
       source: "cfr_draft";
       reportCategory: "cfr";
       date: string;
@@ -97,6 +112,7 @@ export function ReportsPage({
   serviceReportDrafts,
   cfrDrafts,
   dailyDrafts,
+  healthCheckDrafts,
 }: Props) {
   return (
     <section className="space-y-4">
@@ -127,11 +143,16 @@ export function ReportsPage({
             (draft) => draft.vesselId === vessel.id
           );
 
+          const vesselHealthCheckDrafts = healthCheckDrafts.filter(
+            (draft) => draft.vesselId === vessel.id
+          );
+
           const vesselHistoryCount =
             vesselMaintenanceReports.length +
             vesselServiceReportDrafts.length +
             vesselCfrDrafts.length +
-            vesselDailyDrafts.length;
+            vesselDailyDrafts.length +
+            vesselHealthCheckDrafts.length;
 
           return (
             <details
@@ -213,9 +234,26 @@ export function ReportsPage({
                       })
                     );
 
+                  const machineHealthCheckDrafts = vesselHealthCheckDrafts
+                    .filter((draft) => draft.machineId === plan.machine.id)
+                    .map(
+                      (draft): MachineHistoryItem => ({
+                        id: draft.id,
+                        source: "health_check_draft",
+                        reportCategory: "health_check",
+                        date: draft.completedAt || draft.createdAt,
+                        status: (draft.faultCount || 0) > 0 ? "down" : "online",
+                        label: new Date(
+                          draft.completedAt || draft.createdAt
+                        ).toLocaleString(),
+                        healthCheckDraft: draft,
+                      })
+                    );
+
                   const machineHistory = [
                     ...machineMaintenanceReports,
                     ...machineServiceReportDrafts,
+                    ...machineHealthCheckDrafts,
                     ...machineCfrDrafts,
                     ...machineDailyDrafts,
                   ].sort(
@@ -323,6 +361,34 @@ export function ReportsPage({
                                       <div className="mt-1 text-xs text-slate-500">
                                         {item.dailyDraft.workConductedToday ||
                                           "Daily report"}
+                                      </div>
+                                    </div>
+
+                                    <span
+                                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${reportCategoryBadge(
+                                        item.reportCategory
+                                      )}`}
+                                    >
+                                      {reportCategoryLabel(item.reportCategory)}
+                                    </span>
+                                  </div>
+                                </Link>
+                              );
+                            }
+
+                            if (item.source === "health_check_draft") {
+                              return (
+                                <Link
+                                  key={item.id}
+                                  to={`/health-check-reports/${item.id}`}
+                                  className="block rounded-2xl bg-white px-4 py-3 text-sm text-slate-700 ring-1 ring-slate-200 transition hover:ring-slate-300"
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <div>{item.label}</div>
+                                      <div className="mt-1 text-xs text-slate-500">
+                                        {item.healthCheckDraft.templateName ||
+                                          "Health check report"}
                                       </div>
                                     </div>
 

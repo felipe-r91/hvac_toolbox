@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { ReportPhotosSection } from "../components/ReportPhotosSection";
 import { MachineHeader } from "../components/MachineHeader";
@@ -73,7 +73,6 @@ type Props = {
   vessels: Vessel[];
   onSaveDraft: (draft: CfrDraft) => void;
   onDeleteDraft: (draftId: string) => void;
-  getExistingDraft: (machineId: string) => CfrDraft | null;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onDeleteMachinePhoto: (machineId: string) => void;
 };
@@ -82,11 +81,11 @@ export function CfrReportPage({
   vessels,
   onSaveDraft,
   onDeleteDraft,
-  getExistingDraft,
   onAddMachinePhoto,
   onDeleteMachinePhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
+  const navigate = useNavigate();
 
   const vessel = vessels.find((item) => item.id === vesselId);
   const plan = vessel?.machines.find((item) => item.machine.id === machineId);
@@ -129,11 +128,6 @@ export function CfrReportPage({
   };
 
   const [draft, setDraft] = useState<CfrDraft | null>(() => {
-    if (!vessel || !plan || !machineId) return null;
-
-    const existing = getExistingDraft(machineId);
-    if (existing) return existing;
-
     return createEmptyDraft();
   });
 
@@ -254,14 +248,16 @@ export function CfrReportPage({
   const machinePhotoValid = machinePhotoCount > 0;
 
   const saveDraftLocally = () => {
-    onSaveDraft({
+    const payload: CfrDraft = {
       ...draft,
       reportCategory: "cfr",
       synced: false,
-    });
+    };
+
+    onSaveDraft(payload);
 
     alert("CFR saved locally.");
-    setDraft(createEmptyDraft());
+    navigate(`/cfr-reports/${payload.id}`);
   };
 
   const clearCurrentDraft = () => {

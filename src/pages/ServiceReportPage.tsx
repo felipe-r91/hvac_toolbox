@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { MachineHeader } from "../components/MachineHeader";
 import { MachinePhotoSection } from "../components/MachinePhotoSection";
@@ -13,7 +13,6 @@ type Props = {
   vessels: Vessel[];
   onSaveDraft: (draft: ServiceReportDraft) => void;
   onDeleteDraft: (draftId: string) => void;
-  getExistingDraft: (machineId: string) => ServiceReportDraft | null;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onDeleteMachinePhoto: (machineId: string) => void;
 };
@@ -22,11 +21,11 @@ export function ServiceReportPage({
   vessels,
   onSaveDraft,
   onDeleteDraft,
-  getExistingDraft,
   onAddMachinePhoto,
   onDeleteMachinePhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
+  const navigate = useNavigate();
 
   const vessel = vessels.find((item) => item.id === vesselId);
   const plan = vessel?.machines.find((item) => item.machine.id === machineId);
@@ -56,11 +55,6 @@ export function ServiceReportPage({
   };
 
   const [draft, setDraft] = useState<ServiceReportDraft | null>(() => {
-    if (!vessel || !plan || !machineId) return null;
-
-    const existing = getExistingDraft(machineId);
-    if (existing) return existing;
-
     return createEmptyDraft();
   });
 
@@ -147,14 +141,16 @@ export function ServiceReportPage({
   const canSaveDraft = Boolean(machinePhotoValid && draft.workPerformed.trim());
 
   const saveDraftLocally = () => {
-    onSaveDraft({
+    const payload: ServiceReportDraft = {
       ...draft,
       reportCategory: "service_report",
       synced: false,
-    });
+    };
+
+    onSaveDraft(payload);
 
     alert("Service report saved locally.");
-    setDraft(createEmptyDraft());
+    navigate(`/service-reports/${payload.id}`);
   };
 
   const deleteLocalDraft = () => {

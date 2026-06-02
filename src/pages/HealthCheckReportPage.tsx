@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BackButton } from "../components/BackButton";
 import { CategorySection } from "../components/CategorySection";
 import { MachineHeader } from "../components/MachineHeader";
@@ -23,7 +23,6 @@ import { deletePhotoBlob, savePhotoBlob } from "../storage/photoDb";
 type Props = {
   vessels: Vessel[];
   onSaveDraft: (draft: HealthCheckDraft) => void;
-  getExistingDraft: (machineId: string) => HealthCheckDraft | null;
   onAddMachinePhoto: (machineId: string, file: File) => void;
   onDeleteMachinePhoto: (machineId: string) => void;
 };
@@ -31,11 +30,11 @@ type Props = {
 export function HealthCheckReportPage({
   vessels,
   onSaveDraft,
-  getExistingDraft,
   onAddMachinePhoto,
   onDeleteMachinePhoto,
 }: Props) {
   const { vesselId, machineId } = useParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [pendingOnly, setPendingOnly] = useState(false);
 
@@ -74,11 +73,6 @@ export function HealthCheckReportPage({
   };
 
   const [draft, setDraft] = useState<HealthCheckDraft | null>(() => {
-    if (!machineId) return null;
-
-    const existing = getExistingDraft(machineId);
-    if (existing) return existing;
-
     return createEmptyDraft();
   });
 
@@ -236,6 +230,7 @@ export function HealthCheckReportPage({
     setDraft(payload);
     onSaveDraft(payload);
     alert("Health check report saved locally.");
+    navigate(`/health-check-reports/${payload.id}`);
   };
 
   return (

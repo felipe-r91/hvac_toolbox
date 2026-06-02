@@ -23,7 +23,7 @@ import { ShipMachinesPage } from "./pages/ShipMachinesPage";
 import { MachineMaintenancePage } from "./pages/MachineMaintenancePage";
 import { MachinesPage } from "./pages/MachinesPage";
 import { ReportsPage } from "./pages/ReportsPage";
-import { ReportDetailPage } from "./pages/ReportDetailPage";
+import { MachineMaintenanceReportDetailPage } from "./pages/MachineMaintenanceReportDetailPage";
 import { CfrReportPage } from "./pages/CfrReportPage";
 import { createId } from "./utils/createId";
 import { createTasksFromModel } from "./data/maintenancePlanLibrary";
@@ -53,6 +53,7 @@ import { CfrReportDetailPage } from "./pages/CfrReportDetailPage";
 import { DailyReportPage } from "./pages/DailyReportPage";
 import { DailyReportDetailPage } from "./pages/DailyReportDetailPage";
 import { HealthCheckReportPage } from "./pages/HealthCheckReportPage";
+import { HealthCheckReportDetailPage } from "./pages/HealthCheckReportDetailPage";
 
 function MachineMaintenanceRoute({
   fleet,
@@ -710,10 +711,6 @@ export default function App() {
     });
   };
 
-  const getHealthCheckDraftByMachine = (machineId: string) => {
-    return fleet.healthCheckDrafts.find((item) => item.machineId === machineId) || null;
-  };
-
   const saveServiceReportDraft = (draft: ServiceReportDraft) => {
     const payload = {
       ...draft,
@@ -739,10 +736,6 @@ export default function App() {
       ...current,
       serviceReportDrafts: current.serviceReportDrafts.filter((item) => item.id !== draftId),
     }));
-  };
-
-  const getServiceReportDraftByMachine = (machineId: string) => {
-    return fleet.serviceReportDrafts.find((item) => item.machineId === machineId) || null;
   };
 
   const reportProgress = (
@@ -2058,10 +2051,6 @@ export default function App() {
     }));
   };
 
-  const getCfrDraftByMachine = (machineId: string) => {
-    return fleet.cfrDrafts.find((item) => item.machineId === machineId) || null;
-  };
-
   const saveDailyDraft = (draft: DailyDraft) => {
     const payload = {
       ...draft,
@@ -2086,10 +2075,6 @@ export default function App() {
       ...current,
       dailyDrafts: current.dailyDrafts.filter((item) => item.id !== draftId),
     }));
-  };
-
-  const getDailyDraftByMachine = (machineId: string) => {
-    return fleet.dailyDrafts.find((item) => item.machineId === machineId) || null;
   };
 
   const syncSharedMachinePhoto = async (machineId: string) => {
@@ -2227,13 +2212,19 @@ export default function App() {
               serviceReportDrafts={fleet.serviceReportDrafts}
               cfrDrafts={fleet.cfrDrafts}
               dailyDrafts={fleet.dailyDrafts}
+              healthCheckDrafts={fleet.healthCheckDrafts}
             />
           }
         />
 
         <Route
           path="/reports/:reportId"
-          element={<ReportDetailPage reports={fleet.reports} photos={fleet.photos} />}
+          element={
+            <MachineMaintenanceReportDetailPage
+              reports={fleet.reports}
+              photos={fleet.photos}
+            />
+          }
         />
 
         <Route
@@ -2274,7 +2265,6 @@ export default function App() {
               vessels={fleet.vessels}
               onSaveDraft={saveServiceReportDraft}
               onDeleteDraft={deleteServiceReportDraft}
-              getExistingDraft={getServiceReportDraftByMachine}
               onAddMachinePhoto={addMachinePhoto}
               onDeleteMachinePhoto={deleteMachinePhoto}
             />
@@ -2287,7 +2277,6 @@ export default function App() {
             <HealthCheckReportPage
               vessels={fleet.vessels}
               onSaveDraft={saveHealthCheckDraft}
-              getExistingDraft={getHealthCheckDraftByMachine}
               onAddMachinePhoto={addMachinePhoto}
               onDeleteMachinePhoto={deleteMachinePhoto}
             />
@@ -2301,7 +2290,6 @@ export default function App() {
               vessels={fleet.vessels}
               onSaveDraft={saveCfrDraft}
               onDeleteDraft={deleteCfrDraft}
-              getExistingDraft={getCfrDraftByMachine}
               onAddMachinePhoto={addMachinePhoto}
               onDeleteMachinePhoto={deleteMachinePhoto}
             />
@@ -2315,7 +2303,6 @@ export default function App() {
               vessels={fleet.vessels}
               onSaveDraft={saveDailyDraft}
               onDeleteDraft={deleteDailyDraft}
-              getExistingDraft={getDailyDraftByMachine}
               onAddMachinePhoto={addMachinePhoto}
               onDeleteMachinePhoto={deleteMachinePhoto}
             />
@@ -2335,6 +2322,16 @@ export default function App() {
         <Route
           path="/daily-reports/:draftId"
           element={<DailyReportDetailPage dailyDrafts={fleet.dailyDrafts} />}
+        />
+
+        <Route
+          path="/health-check-reports/:draftId"
+          element={
+            <HealthCheckReportDetailPage
+              healthCheckDrafts={fleet.healthCheckDrafts}
+              vessels={fleet.vessels}
+            />
+          }
         />
 
         <Route
