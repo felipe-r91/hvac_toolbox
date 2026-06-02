@@ -16,6 +16,7 @@ import {
   type FinishMaintenanceResult,
   type CfrDraft,
   type DailyDraft,
+  type HealthCheckDraft,
 } from "./types/maintenance";
 import { VesselsPage } from "./pages/VesselsPage";
 import { ShipMachinesPage } from "./pages/ShipMachinesPage";
@@ -34,10 +35,15 @@ import { savePhotoBlob, getPhotoBlob, deletePhotoBlob } from "./storage/photoDb"
 import { SyncPage, type SyncProgressInfo } from "./pages/SyncPage";
 import { API_BASE_URL } from "./api/config";
 import { getMaintenanceTemplateLibrary } from "./api/maintenanceTemplateApi";
+import { getHealthCheckTemplateLibrary } from "./api/healthCheckTemplateApi";
 import {
   saveMaintenanceTemplateLibrary,
   type StoredMaintenanceTemplateLibrary,
 } from "./storage/maintenanceTemplateStorage";
+import {
+  saveHealthCheckTemplateLibrary,
+  type StoredHealthCheckTemplateLibrary,
+} from "./storage/healthCheckTemplateStorage";
 import {
   loadOfflineSyncMetadata,
   updateOfflineSyncMetadata,
@@ -46,6 +52,7 @@ import { resolvePhotoUrl } from "./utils/photoUrl";
 import { CfrReportDetailPage } from "./pages/CfrReportDetailPage";
 import { DailyReportPage } from "./pages/DailyReportPage";
 import { DailyReportDetailPage } from "./pages/DailyReportDetailPage";
+import { HealthCheckReportPage } from "./pages/HealthCheckReportPage";
 
 function MachineMaintenanceRoute({
   fleet,
@@ -217,6 +224,9 @@ export default function App() {
       ),
       cfrDrafts: current.cfrDrafts.filter((draft) => draft.vesselId !== vesselId),
       dailyDrafts: current.dailyDrafts.filter((draft) => draft.vesselId !== vesselId),
+      healthCheckDrafts: current.healthCheckDrafts.filter(
+        (draft) => draft.vesselId !== vesselId
+      ),
       photos: current.photos.filter((photo) => {
         const vessel = current.vessels.find((item) => item.id === vesselId);
         const machineIds = vessel?.machines.map((plan) => plan.machine.id) || [];
@@ -672,8 +682,36 @@ export default function App() {
       dailyDrafts: current.dailyDrafts.filter(
         (draft) => draft.machineId !== payload.machineId
       ),
+      healthCheckDrafts: current.healthCheckDrafts.filter(
+        (draft) => draft.machineId !== payload.machineId
+      ),
       photos: current.photos.filter((photo) => photo.machineId !== payload.machineId),
     }));
+  };
+
+  const saveHealthCheckDraft = (draft: HealthCheckDraft) => {
+    const payload = {
+      ...draft,
+      synced: false,
+      reportCategory: "health_check" as const,
+    };
+
+    setFleet((current) => {
+      const existing = current.healthCheckDrafts.find((item) => item.id === payload.id);
+
+      return {
+        ...current,
+        healthCheckDrafts: existing
+          ? current.healthCheckDrafts.map((item) =>
+              item.id === payload.id ? payload : item
+            )
+          : [payload, ...current.healthCheckDrafts],
+      };
+    });
+  };
+
+  const getHealthCheckDraftByMachine = (machineId: string) => {
+    return fleet.healthCheckDrafts.find((item) => item.machineId === machineId) || null;
   };
 
   const saveServiceReportDraft = (draft: ServiceReportDraft) => {
@@ -751,10 +789,28 @@ export default function App() {
     }));
   };
 
+  const markHealthCheckDraftSynced = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      healthCheckDrafts: current.healthCheckDrafts.map((draft) =>
+        draft.id === draftId ? { ...draft, synced: true } : draft
+      ),
+    }));
+  };
+
   const deleteMachineMaintenanceReport = (reportId: string) => {
     setFleet((current) => ({
       ...current,
       reports: current.reports.filter((report) => report.id !== reportId),
+    }));
+  };
+
+  const deleteHealthCheckDraft = (draftId: string) => {
+    setFleet((current) => ({
+      ...current,
+      healthCheckDrafts: current.healthCheckDrafts.filter(
+        (draft) => draft.id !== draftId
+      ),
     }));
   };
 
@@ -767,12 +823,16 @@ export default function App() {
     );
     const pendingCfrDrafts = fleet.cfrDrafts.filter((item) => !item.synced);
     const pendingDailyDrafts = fleet.dailyDrafts.filter((item) => !item.synced);
+    const pendingHealthCheckDrafts = fleet.healthCheckDrafts.filter(
+      (item) => !item.synced
+    );
 
     const totalItems =
       pendingReports.length +
       pendingServiceReportDrafts.length +
       pendingCfrDrafts.length +
-      pendingDailyDrafts.length;
+      pendingDailyDrafts.length +
+      pendingHealthCheckDrafts.length;
 
     try {
       reportProgress(onProgress, 5, "Syncing fleet master data...");
@@ -817,6 +877,25 @@ export default function App() {
         });
 
         completedItems += 1;
+        reportProgress(
+          onProgress,
+          Math.round(10 + (completedItems / totalItems) * 90),
+          `Completed ${completedItems} of ${totalItems} items...`
+        );
+      }
+
+      if (pendingHealthCheckDrafts.length > 0) {
+        await syncHealthCheckDraftsBatch(pendingHealthCheckDrafts, (info) => {
+          const itemBase = completedItems / totalItems;
+          const itemWeight = pendingHealthCheckDrafts.length / totalItems;
+          const overallPercent = Math.round(
+            10 + (itemBase + (info.percent / 100) * itemWeight) * 90
+          );
+
+          reportProgress(onProgress, overallPercent, info.label);
+        });
+
+        completedItems += pendingHealthCheckDrafts.length;
         reportProgress(
           onProgress,
           Math.round(10 + (completedItems / totalItems) * 90),
@@ -982,6 +1061,101 @@ export default function App() {
     } catch (error) {
       console.error(error);
       alert("Failed to sync service report draft.");
+      throw error;
+    }
+  };
+
+  const syncHealthCheckDraft = async (
+    draftId: string,
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const draft = fleet.healthCheckDrafts.find((item) => item.id === draftId);
+
+    if (!draft) {
+      alert("Health check report not found.");
+      return;
+    }
+
+    try {
+      reportProgress(onProgress, 5, `Syncing fleet data for ${draft.machineTag}...`);
+      await postFleetSync();
+
+      reportProgress(onProgress, 8, `Syncing machine photo for ${draft.machineTag}...`);
+      await syncSharedMachinePhoto(draft.machineId);
+
+      reportProgress(onProgress, 10, `Sending health check report for ${draft.machineTag}...`);
+      await postHealthCheckDraft(draft);
+
+      reportProgress(onProgress, 50, `Uploading health check photos for ${draft.machineTag}...`);
+      const uploadedTaskPhotos = await uploadHealthCheckTaskPhotos(draft, (percent, label) => {
+        reportProgress(onProgress, 50 + Math.round(percent * 0.35), label);
+      });
+
+      reportProgress(onProgress, 90, `Cleaning local photo data for ${draft.machineTag}...`);
+      await cleanupHealthCheckTaskPhotos(draft, uploadedTaskPhotos);
+
+      markHealthCheckDraftSynced(draftId);
+      reportProgress(onProgress, 100, `Health check report for ${draft.machineTag} synced.`);
+
+      alert("Health check report synced successfully.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync health check report.");
+      throw error;
+    }
+  };
+
+  const syncHealthCheckDraftsBatch = async (
+    drafts: HealthCheckDraft[],
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    if (drafts.length === 0) return;
+
+    try {
+      reportProgress(onProgress, 5, `Preparing ${drafts.length} health check report${drafts.length === 1 ? "" : "s"}...`);
+
+      for (let index = 0; index < drafts.length; index += 1) {
+        const draft = drafts[index];
+        reportProgress(
+          onProgress,
+          8 + Math.round((index / drafts.length) * 12),
+          `Syncing machine photo ${index + 1} of ${drafts.length} for ${draft.machineTag}...`
+        );
+        await syncSharedMachinePhoto(draft.machineId);
+      }
+
+      reportProgress(onProgress, 25, "Sending health check reports...");
+      await postHealthCheckBatch(drafts);
+
+      for (let index = 0; index < drafts.length; index += 1) {
+        const draft = drafts[index];
+
+        const uploadedTaskPhotos = await uploadHealthCheckTaskPhotos(
+          draft,
+          (percent, label) => {
+            const fileStart = index / drafts.length;
+            const fileSpan = 1 / drafts.length;
+            const overallPercent = Math.round(
+              35 + (fileStart + (percent / 100) * fileSpan) * 50
+            );
+
+            reportProgress(onProgress, overallPercent, label);
+          }
+        );
+
+        reportProgress(
+          onProgress,
+          88 + Math.round((index / drafts.length) * 8),
+          `Cleaning local health check photos for ${draft.machineTag}...`
+        );
+        await cleanupHealthCheckTaskPhotos(draft, uploadedTaskPhotos);
+        markHealthCheckDraftSynced(draft.id);
+      }
+
+      reportProgress(onProgress, 100, "Health check reports synced.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to sync health check reports.");
       throw error;
     }
   };
@@ -1181,6 +1355,61 @@ export default function App() {
     return response.json();
   };
 
+  const buildHealthCheckSyncPayload = (draft: HealthCheckDraft) => {
+    return {
+      ...draft,
+      completedAt: draft.completedAt || draft.createdAt,
+      faultCount:
+        draft.faultCount ?? draft.tasks.filter((task) => task.status === "fault").length,
+      skippedCount:
+        draft.skippedCount ?? draft.tasks.filter((task) => task.status === "skipped").length,
+    };
+  };
+
+  const postHealthCheckDraft = async (draft: HealthCheckDraft) => {
+    const payload = buildHealthCheckSyncPayload(draft);
+
+    const response = await fetch(`${API_BASE_URL}/api/sync/health-check`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Health check sync failed: ${text}`);
+    }
+
+    return response.json();
+  };
+
+  const postHealthCheckBatch = async (drafts: HealthCheckDraft[]) => {
+    const response = await fetch(`${API_BASE_URL}/api/sync/health-check/batch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reports: drafts.map((draft) => buildHealthCheckSyncPayload(draft)),
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Health check batch sync failed: ${text}`);
+    }
+
+    const result = await response.json();
+
+    if (typeof result.failed === "number" && result.failed > 0) {
+      throw new Error(`Health check batch sync failed for ${result.failed} report(s).`);
+    }
+
+    return result;
+  };
+
   const postCfrDraft = async (draft: CfrDraft) => {
     const payload = {
       ...draft,
@@ -1246,7 +1475,14 @@ export default function App() {
     photoId,
     onUploadProgress,
   }: {
-    ownerType: "SERVICE_REPORT_DRAFT" | "PREVENTIVE_MACHINE" | "PREVENTIVE_TASK" | "CFR_DRAFT" | "DAILY_DRAFT" | "MACHINE_PROFILE";
+    ownerType:
+      | "SERVICE_REPORT_DRAFT"
+      | "PREVENTIVE_MACHINE"
+      | "PREVENTIVE_TASK"
+      | "HEALTH_CHECK_TASK"
+      | "CFR_DRAFT"
+      | "DAILY_DRAFT"
+      | "MACHINE_PROFILE";
     ownerId: string;
     machineId: string;
     taskId?: string;
@@ -1392,6 +1628,89 @@ export default function App() {
           remotePhotoId: uploadedPhotos[photo.id]?.remotePhotoId ?? photo.remotePhotoId,
         };
       }),
+    }));
+  };
+
+  const uploadHealthCheckTaskPhotos = async (
+    draft: HealthCheckDraft,
+    onProgress?: (percent: number, label: string) => void
+  ) => {
+    const taskPhotoJobs = draft.tasks.flatMap((task) => {
+      const taskPhotoIds = task.photoIds || [];
+      if (taskPhotoIds.length === 0) return [];
+
+      return draft.taskPhotos
+        .filter((photo) => photo.taskId === task.id && taskPhotoIds.includes(photo.id))
+        .map((photo) => ({
+          task,
+          photo,
+        }));
+    });
+
+    const uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }> = {};
+
+    if (taskPhotoJobs.length === 0) {
+      onProgress?.(100, `No health check task photos for ${draft.machineTag}.`);
+      return uploadedPhotos;
+    }
+
+    for (let index = 0; index < taskPhotoJobs.length; index += 1) {
+      const { task, photo } = taskPhotoJobs[index];
+
+      const uploaded = await uploadPhotoRecord({
+        ownerType: "HEALTH_CHECK_TASK",
+        ownerId: draft.id,
+        machineId: draft.machineId,
+        taskId: task.id,
+        caption: task.task,
+        photoId: photo.id,
+        onUploadProgress: (uploadPercent) => {
+          const fileStart = (index / taskPhotoJobs.length) * 100;
+          const fileSpan = 100 / taskPhotoJobs.length;
+          const overallPercent = Math.round(
+            fileStart + (uploadPercent / 100) * fileSpan
+          );
+
+          onProgress?.(
+            overallPercent,
+            `Uploading health check photo ${index + 1} of ${taskPhotoJobs.length} for ${draft.machineTag}...`
+          );
+        },
+      });
+
+      uploadedPhotos[photo.id] = {
+        remotePhotoId: uploaded.id,
+        previewUrl: toAbsoluteApiUrl(uploaded.previewUrl),
+      };
+    }
+
+    return uploadedPhotos;
+  };
+
+  const cleanupHealthCheckTaskPhotos = async (
+    draft: HealthCheckDraft,
+    uploadedPhotos: Record<string, { remotePhotoId: string; previewUrl?: string }>
+  ) => {
+    for (const photo of draft.taskPhotos) {
+      await deletePhotoBlob(photo.id);
+    }
+
+    setFleet((current) => ({
+      ...current,
+      healthCheckDrafts: current.healthCheckDrafts.map((item) =>
+        item.id === draft.id
+          ? {
+              ...item,
+              taskPhotos: item.taskPhotos.map((photo) => ({
+                ...photo,
+                previewUrl: uploadedPhotos[photo.id]?.previewUrl ?? photo.previewUrl,
+                remotePhotoId:
+                  uploadedPhotos[photo.id]?.remotePhotoId ?? photo.remotePhotoId,
+                blobStored: false,
+              })),
+            }
+          : item
+      ),
     }));
   };
 
@@ -1581,7 +1900,7 @@ export default function App() {
             category: task.category,
             task: task.task,
             tool: task.tool || "",
-            unit: task.unit,
+            unit: task.unit || undefined,
             required: task.required ?? true,
             measurable: task.measurable ?? false,
             photoRequiredOnFault: task.photoRequiredOnFault ?? true,
@@ -1603,6 +1922,55 @@ export default function App() {
     } catch (error) {
       console.error(error);
       setTemplateSyncError("Failed to sync maintenance template library.");
+      throw error;
+    } finally {
+      setTemplateSyncLoading(false);
+    }
+  };
+
+  const syncHealthCheckTemplateLibrary = async () => {
+    try {
+      setTemplateSyncLoading(true);
+      setTemplateSyncError("");
+      setTemplateSyncSuccessMessage("");
+
+      const response = await getHealthCheckTemplateLibrary();
+      const syncedAt = new Date().toISOString();
+
+      const library: StoredHealthCheckTemplateLibrary = {
+        templates: response.templates.map((template) => ({
+          code: template.code,
+          name: template.name,
+          templateType: template.templateType,
+          versionId: template.versionId,
+          versionNumber: template.versionNumber,
+          tasks: template.tasks.map((task) => ({
+            id: task.id,
+            category: task.category,
+            task: task.task,
+            tool: task.tool || "",
+            unit: task.unit,
+            required: task.required ?? true,
+            measurable: task.measurable ?? false,
+            photoRequiredOnFault: task.photoRequiredOnFault ?? true,
+            photoRequiredOnAttention: task.photoRequiredOnAttention ?? true,
+          })),
+        })),
+        syncedAt,
+      };
+
+      saveHealthCheckTemplateLibrary(library);
+
+      updateOfflineSyncMetadata({ healthCheckTemplateSyncedAt: syncedAt });
+      setOfflineSyncMetadata((current) => ({
+        ...current,
+        healthCheckTemplateSyncedAt: syncedAt,
+      }));
+
+      setTemplateSyncSuccessMessage("Health check template library synced successfully.");
+    } catch (error) {
+      console.error(error);
+      setTemplateSyncError("Failed to sync health check template library.");
       throw error;
     } finally {
       setTemplateSyncLoading(false);
@@ -1642,6 +2010,13 @@ export default function App() {
       await syncMaintenanceTemplateLibrary();
     } catch (error) {
       console.error("Template sync failed:", error);
+      hasError = true;
+    }
+
+    try {
+      await syncHealthCheckTemplateLibrary();
+    } catch (error) {
+      console.error("Health check template sync failed:", error);
       hasError = true;
     }
 
@@ -1817,15 +2192,18 @@ export default function App() {
               serviceReportDrafts={fleet.serviceReportDrafts}
               cfrDrafts={fleet.cfrDrafts}
               dailyDrafts={fleet.dailyDrafts}
+              healthCheckDrafts={fleet.healthCheckDrafts}
               onSyncAll={syncAllPendingItems}
               onSyncReport={syncMachineMaintenanceReport}
               onSyncServiceReportDraft={syncServiceReportDraft}
               onSyncCfrDraft={syncCfrDraft}
               onSyncDailyDraft={syncDailyDraft}
+              onSyncHealthCheckDraft={syncHealthCheckDraft}
               onDeleteReport={deleteMachineMaintenanceReport}
               onDeleteServiceReportDraft={deleteServiceReportDraft}
               onDeleteCfrDraft={deleteCfrDraft}
               onDeleteDailyDraft={deleteDailyDraft}
+              onDeleteHealthCheckDraft={deleteHealthCheckDraft}
               onSyncOfflineRegistry={syncOfflineRegistry}
               fleetSyncLoading={fleetSyncLoading}
               fleetSyncError={fleetSyncError}
@@ -1835,6 +2213,7 @@ export default function App() {
               templateSyncSuccessMessage={templateSyncSuccessMessage}
               fleetRegistrySyncedAt={offlineSyncMetadata.fleetRegistrySyncedAt}
               maintenanceTemplateSyncedAt={offlineSyncMetadata.maintenanceTemplateSyncedAt}
+              healthCheckTemplateSyncedAt={offlineSyncMetadata.healthCheckTemplateSyncedAt}
             />
           }
         />
@@ -1896,6 +2275,19 @@ export default function App() {
               onSaveDraft={saveServiceReportDraft}
               onDeleteDraft={deleteServiceReportDraft}
               getExistingDraft={getServiceReportDraftByMachine}
+              onAddMachinePhoto={addMachinePhoto}
+              onDeleteMachinePhoto={deleteMachinePhoto}
+            />
+          }
+        />
+
+        <Route
+          path="/vessels/:vesselId/machines/:machineId/health-check"
+          element={
+            <HealthCheckReportPage
+              vessels={fleet.vessels}
+              onSaveDraft={saveHealthCheckDraft}
+              getExistingDraft={getHealthCheckDraftByMachine}
               onAddMachinePhoto={addMachinePhoto}
               onDeleteMachinePhoto={deleteMachinePhoto}
             />

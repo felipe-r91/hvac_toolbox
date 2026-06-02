@@ -5,8 +5,8 @@ export type BackendMaintenanceTemplateTask = {
   id: string;
   category: MaintenanceTask["category"];
   task: string;
-  tool?: string;
-  unit?: string;
+  tool?: string | null;
+  unit?: string | null;
   required?: boolean;
   measurable?: boolean;
   photoRequiredOnFault?: boolean;

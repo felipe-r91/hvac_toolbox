@@ -3,6 +3,7 @@ import {
   type CfrDraft,
   type ServiceReportDraft,
   type DailyDraft,
+  type HealthCheckDraft,
   type MaintenanceReport,
 } from "../types/maintenance";
 import { usePwaUpdater } from "../hooks/usePwaUpdater";
@@ -18,6 +19,7 @@ type Props = {
   serviceReportDrafts: ServiceReportDraft[];
   cfrDrafts: CfrDraft[];
   dailyDrafts: DailyDraft[];
+  healthCheckDrafts: HealthCheckDraft[];
   onSyncAll: (onProgress: (info: SyncProgressInfo) => void) => Promise<void>;
   onSyncReport: (
     reportId: string,
@@ -35,10 +37,15 @@ type Props = {
     draftId: string,
     onProgress: (info: SyncProgressInfo) => void
   ) => Promise<void>;
+  onSyncHealthCheckDraft: (
+    draftId: string,
+    onProgress: (info: SyncProgressInfo) => void
+  ) => Promise<void>;
   onDeleteReport: (reportId: string) => void;
   onDeleteServiceReportDraft: (draftId: string) => void;
   onDeleteCfrDraft: (draftId: string) => void;
   onDeleteDailyDraft: (draftId: string) => void;
+  onDeleteHealthCheckDraft: (draftId: string) => void;
   onSyncOfflineRegistry: () => Promise<void>;
   fleetSyncLoading: boolean;
   fleetSyncError: string;
@@ -48,6 +55,7 @@ type Props = {
   templateSyncSuccessMessage: string;
   fleetRegistrySyncedAt?: string;
   maintenanceTemplateSyncedAt?: string;
+  healthCheckTemplateSyncedAt?: string;
 };
 
 export function SyncPage({
@@ -55,15 +63,18 @@ export function SyncPage({
   serviceReportDrafts,
   cfrDrafts,
   dailyDrafts,
+  healthCheckDrafts,
   onSyncAll,
   onSyncReport,
   onSyncServiceReportDraft,
   onSyncCfrDraft,
   onSyncDailyDraft,
+  onSyncHealthCheckDraft,
   onDeleteReport,
   onDeleteServiceReportDraft,
   onDeleteCfrDraft,
   onDeleteDailyDraft,
+  onDeleteHealthCheckDraft,
   onSyncOfflineRegistry,
   fleetSyncLoading,
   fleetSyncError,
@@ -73,6 +84,7 @@ export function SyncPage({
   templateSyncSuccessMessage,
   fleetRegistrySyncedAt,
   maintenanceTemplateSyncedAt,
+  healthCheckTemplateSyncedAt,
 }: Props) {
   const { needRefresh, updateApp } = usePwaUpdater();
 
@@ -90,12 +102,14 @@ export function SyncPage({
   const pendingServiceReportDrafts = serviceReportDrafts.filter((draft) => !draft.synced);
   const pendingCfrDrafts = cfrDrafts.filter((draft) => !draft.synced);
   const pendingDailyDrafts = dailyDrafts.filter((draft) => !draft.synced);
+  const pendingHealthCheckDrafts = healthCheckDrafts.filter((draft) => !draft.synced);
 
   const totalPending =
     pendingReports.length +
     pendingServiceReportDrafts.length +
     pendingCfrDrafts.length +
-    pendingDailyDrafts.length;
+    pendingDailyDrafts.length +
+    pendingHealthCheckDrafts.length;
 
   const handleUpdateApp = async () => {
     setUpdateLoading(true);
@@ -201,6 +215,26 @@ export function SyncPage({
     }
   };
 
+  const handleSyncHealthCheckDraft = async (
+    draftId: string,
+    machineTag: string
+  ) => {
+    setSyncLoading(true);
+    setSyncProgress(0);
+    setSyncLabel(`Preparing health check for ${machineTag}...`);
+
+    try {
+      await onSyncHealthCheckDraft(draftId, ({ percent, label }) => {
+        setSyncProgress(percent);
+        setSyncLabel(label);
+      });
+    } finally {
+      setSyncLoading(false);
+      setSyncProgress(0);
+      setSyncLabel("");
+    }
+  };
+
   function formatSyncTime(value?: string) {
     if (!value) return "Never";
     return new Date(value).toLocaleString();
@@ -291,7 +325,7 @@ export function SyncPage({
           </button>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
             <div className="text-xs font-medium text-slate-500">
               Last fleet registry sync
@@ -307,6 +341,15 @@ export function SyncPage({
             </div>
             <div className="mt-1 text-sm text-slate-900">
               {formatSyncTime(maintenanceTemplateSyncedAt)}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+            <div className="text-xs font-medium text-slate-500">
+              Last health check template sync
+            </div>
+            <div className="mt-1 text-sm text-slate-900">
+              {formatSyncTime(healthCheckTemplateSyncedAt)}
             </div>
           </div>
         </div>
@@ -439,6 +482,75 @@ export function SyncPage({
           ) : (
             <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
               No machine maintenance reports pending upload.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="text-lg font-semibold text-slate-900">
+          Health check reports pending upload
+        </h2>
+
+        <div className="mt-4 space-y-3">
+          {pendingHealthCheckDrafts.length > 0 ? (
+            pendingHealthCheckDrafts.map((draft) => (
+              <div
+                key={draft.id}
+                className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {draft.machineTag}
+                      </h3>
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                        Health Check
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      {draft.vesselName} · {draft.machineModel}
+                    </p>
+
+                    <p className="text-xs text-slate-400">
+                      {new Date(draft.completedAt || draft.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSyncHealthCheckDraft(draft.id, draft.machineTag)
+                      }
+                      disabled={updateLoading || syncLoading}
+                      className={`rounded-2xl px-4 py-2 text-sm font-medium text-white ${
+                        updateLoading || syncLoading ? "bg-slate-300" : "bg-slate-900"
+                      }`}
+                    >
+                      Upload
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const confirmed = window.confirm("Delete this health check report?");
+                        if (confirmed) onDeleteHealthCheckDraft(draft.id);
+                      }}
+                      disabled={updateLoading || syncLoading}
+                      className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-red-700 ring-1 ring-red-200"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500 ring-1 ring-slate-200">
+              No health check reports pending upload.
             </div>
           )}
         </div>

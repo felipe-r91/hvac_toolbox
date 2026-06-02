@@ -98,6 +98,16 @@ export function ShipMachinesPage({ vessels }: Props) {
           setModalOpen(false);
           setSelectedMachine(null);
         }}
+        onChooseHealthCheck={() => {
+          if (!selectedMachine) return;
+
+          navigate(
+            `/vessels/${selectedMachine.vesselId}/machines/${selectedMachine.machineId}/health-check`
+          );
+
+          setModalOpen(false);
+          setSelectedMachine(null);
+        }}
         onChooseCfr={() => {
           if (!selectedMachine) return;
 

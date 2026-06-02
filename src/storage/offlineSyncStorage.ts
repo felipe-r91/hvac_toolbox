@@ -1,6 +1,7 @@
 export type OfflineSyncMetadata = {
   fleetRegistrySyncedAt?: string;
   maintenanceTemplateSyncedAt?: string;
+  healthCheckTemplateSyncedAt?: string;
 };
 
 const STORAGE_KEY = "hvac-offline-sync-metadata-v1";

@@ -1,6 +1,9 @@
-import { type MaintenanceTask, type TaskCategory } from "../types/maintenance";
+import {
+  type KnownTaskCategory,
+  type MaintenanceTask,
+} from "../types/maintenance";
 
-export const categoryOrder: TaskCategory[] = [
+export const categoryOrder: KnownTaskCategory[] = [
   "Daily",
   "Weekly",
   "Monthly",
@@ -37,7 +40,15 @@ export function groupTasks(tasks: MaintenanceTask[], search: string, pendingOnly
     return matchesSearch && matchesPending;
   });
 
-  return categoryOrder
+  const orderedCategories = [
+    ...categoryOrder,
+    ...filtered
+      .map((task) => task.category)
+      .filter((category) => !categoryOrder.includes(category as KnownTaskCategory))
+      .filter((category, index, categories) => categories.indexOf(category) === index),
+  ];
+
+  return orderedCategories
     .map((category) => ({
       category,
       tasks: filtered.filter((task) => task.category === category),

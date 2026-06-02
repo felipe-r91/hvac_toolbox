@@ -1,4 +1,9 @@
-import { type FleetData, type MaintenanceReport, type ServiceReportDraft } from "../types/maintenance";
+import {
+  type FleetData,
+  type HealthCheckDraft,
+  type MaintenanceReport,
+  type ServiceReportDraft,
+} from "../types/maintenance";
 import { emptyFleet } from "../data/emptyFleet";
 
 const STORAGE_KEY = "hvac-fleet-data-v3";
@@ -17,11 +22,17 @@ function normalizeServiceReportDraft(draft: Record<string, unknown>): ServiceRep
 function normalizeMaintenanceReport(report: Record<string, unknown>): MaintenanceReport {
   return {
     ...report,
-    reportCategory:
-      report.reportCategory === "health_check"
-        ? "machine_maintenance"
-        : report.reportCategory || "machine_maintenance",
+    reportCategory: report.reportCategory || "machine_maintenance",
   } as MaintenanceReport;
+}
+
+function normalizeHealthCheckDraft(draft: Record<string, unknown>): HealthCheckDraft {
+  return {
+    ...draft,
+    reportCategory: "health_check",
+    tasks: Array.isArray(draft.tasks) ? draft.tasks : [],
+    taskPhotos: Array.isArray(draft.taskPhotos) ? draft.taskPhotos : [],
+  } as HealthCheckDraft;
 }
 
 export function loadFleet(): FleetData {
@@ -48,6 +59,11 @@ export function loadFleet(): FleetData {
       ),
       cfrDrafts: Array.isArray(parsed.cfrDrafts) ? parsed.cfrDrafts : [],
       dailyDrafts: Array.isArray(parsed.dailyDrafts) ? parsed.dailyDrafts : [],
+      healthCheckDrafts: Array.isArray(parsed.healthCheckDrafts)
+        ? parsed.healthCheckDrafts.map((draft) =>
+            normalizeHealthCheckDraft(draft as Record<string, unknown>)
+          )
+        : [],
     };
   } catch {
     return emptyFleet;

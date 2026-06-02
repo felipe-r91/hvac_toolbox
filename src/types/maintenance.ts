@@ -1,4 +1,4 @@
-export type TaskCategory =
+export type KnownTaskCategory =
   | "Daily"
   | "Weekly"
   | "Monthly"
@@ -18,6 +18,8 @@ export type TaskCategory =
   | "Sensors"
   | "Shutdown/Idle"
   | "Fault-finding";
+
+export type TaskCategory = KnownTaskCategory | (string & {});
 
 export type TaskStatus =
   | "pending"
@@ -166,6 +168,7 @@ export type FleetData = {
   serviceReportDrafts: ServiceReportDraft[];
   cfrDrafts: CfrDraft[];
   dailyDrafts: DailyDraft[];
+  healthCheckDrafts: HealthCheckDraft[];
 };
 
 export type PhotoRecord = {
@@ -226,6 +229,7 @@ export type UploadedPhotoRecord = {
     | "SERVICE_REPORT_DRAFT"
     | "PREVENTIVE_MACHINE"
     | "PREVENTIVE_TASK"
+    | "HEALTH_CHECK_TASK"
     | "CFR_DRAFT"
     | "DAILY_DRAFT";
   ownerId: string;
@@ -235,6 +239,17 @@ export type UploadedPhotoRecord = {
   caption: string;
   createdAt: string;
   previewUrl?: string;
+};
+
+export type HealthCheckTaskPhoto = {
+  id: string;
+  taskId: string;
+  previewUrl?: string;
+  filename: string;
+  mimeType: string;
+  createdAt: string;
+  blobStored?: boolean;
+  remotePhotoId?: string;
 };
 
 export type FleetSyncPayload = {
@@ -350,5 +365,31 @@ export type DailyDraft = {
   furtherActions: string;
 
   photos: ReportPhoto[];
+  synced?: boolean;
+};
+
+export type HealthCheckDraft = {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  machineId: string;
+  machineTag: string;
+  machineModel: string;
+  machineType: string;
+  machineStarterType: string;
+  machineLocation: string;
+  machineSerialNumber: string;
+  createdAt: string;
+  completedAt?: string;
+  reportCategory: "health_check";
+  templateCode: string;
+  templateName: string;
+  templateVersionId: string;
+  templateVersionNumber: number;
+  tasks: MaintenanceTask[];
+  taskPhotos: HealthCheckTaskPhoto[];
+  faultCount?: number;
+  attentionCount?: number;
+  skippedCount?: number;
   synced?: boolean;
 };

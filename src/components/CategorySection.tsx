@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { type MaintenanceTask, type TaskCategory } from "../types/maintenance";
+import { type MaintenanceTask } from "../types/maintenance";
 import { TaskItem } from "./TaskItem";
 
 type Props = {
-  category: TaskCategory;
+  category: string;
   tasks: MaintenanceTask[];
   onUpdateTask: (task: MaintenanceTask) => void;
   onAddTaskPhoto: (taskId: string, file: File) => void;
