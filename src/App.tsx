@@ -943,6 +943,58 @@ export default function App() {
     }
   };
 
+  const uploadFleetDataToBackend = async (
+    onProgress?: (info: SyncProgressInfo) => void
+  ) => {
+    const machinePlans = fleet.vessels.flatMap((vessel) => vessel.machines);
+    const machinesWithLocalPhotos = machinePlans.filter(
+      (plan) => plan.machine.machinePhotoId && plan.machine.machinePhotoBlobStored
+    );
+
+    try {
+      setFleetSyncError("");
+      setFleetSyncSuccessMessage("");
+
+      reportProgress(
+        onProgress,
+        10,
+        `Uploading ${fleet.vessels.length} vessel${
+          fleet.vessels.length === 1 ? "" : "s"
+        } and ${machinePlans.length} machine${machinePlans.length === 1 ? "" : "s"}...`
+      );
+      await postFleetSync();
+
+      if (machinesWithLocalPhotos.length === 0) {
+        reportProgress(onProgress, 100, "Fleet vessels and machines uploaded.");
+        setFleetSyncSuccessMessage("Fleet vessels and machines uploaded successfully.");
+        return;
+      }
+
+      for (let index = 0; index < machinesWithLocalPhotos.length; index += 1) {
+        const machine = machinesWithLocalPhotos[index].machine;
+        const percent = Math.round(
+          20 + (index / machinesWithLocalPhotos.length) * 70
+        );
+
+        reportProgress(
+          onProgress,
+          percent,
+          `Uploading machine photo ${index + 1} of ${
+            machinesWithLocalPhotos.length
+          } for ${machine.tag}...`
+        );
+        await syncSharedMachinePhoto(machine.id);
+      }
+
+      reportProgress(onProgress, 100, "Fleet vessels and machines uploaded.");
+      setFleetSyncSuccessMessage("Fleet vessels and machines uploaded successfully.");
+    } catch (error) {
+      console.error(error);
+      setFleetSyncError("Failed to upload fleet vessels and machines.");
+      throw error;
+    }
+  };
+
   const syncMachineMaintenanceReport = async (
     reportId: string,
     onProgress?: (info: SyncProgressInfo) => void
@@ -2184,6 +2236,7 @@ export default function App() {
               onSyncCfrDraft={syncCfrDraft}
               onSyncDailyDraft={syncDailyDraft}
               onSyncHealthCheckDraft={syncHealthCheckDraft}
+              onUploadFleetData={uploadFleetDataToBackend}
               onDeleteReport={deleteMachineMaintenanceReport}
               onDeleteServiceReportDraft={deleteServiceReportDraft}
               onDeleteCfrDraft={deleteCfrDraft}

@@ -41,6 +41,9 @@ type Props = {
     draftId: string,
     onProgress: (info: SyncProgressInfo) => void
   ) => Promise<void>;
+  onUploadFleetData: (
+    onProgress: (info: SyncProgressInfo) => void
+  ) => Promise<void>;
   onDeleteReport: (reportId: string) => void;
   onDeleteServiceReportDraft: (draftId: string) => void;
   onDeleteCfrDraft: (draftId: string) => void;
@@ -70,6 +73,7 @@ export function SyncPage({
   onSyncCfrDraft,
   onSyncDailyDraft,
   onSyncHealthCheckDraft,
+  onUploadFleetData,
   onDeleteReport,
   onDeleteServiceReportDraft,
   onDeleteCfrDraft,
@@ -134,6 +138,23 @@ export function SyncPage({
 
     try {
       await onSyncAll(({ percent, label }) => {
+        setSyncProgress(percent);
+        setSyncLabel(label);
+      });
+    } finally {
+      setSyncLoading(false);
+      setSyncProgress(0);
+      setSyncLabel("");
+    }
+  };
+
+  const handleUploadFleetData = async () => {
+    setSyncLoading(true);
+    setSyncProgress(0);
+    setSyncLabel("Preparing fleet data upload...");
+
+    try {
+      await onUploadFleetData(({ percent, label }) => {
         setSyncProgress(percent);
         setSyncLabel(label);
       });
@@ -392,6 +413,23 @@ export function SyncPage({
           >
             <TbCloudUp size={24} />
             Upload all pending items ({totalPending})
+          </button>
+
+          <button
+            type="button"
+            onClick={handleUploadFleetData}
+            disabled={updateLoading || syncLoading || fleetSyncLoading || templateSyncLoading}
+            className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-white ${
+              !updateLoading &&
+              !syncLoading &&
+              !fleetSyncLoading &&
+              !templateSyncLoading
+                ? "bg-slate-900"
+                : "bg-slate-300"
+            }`}
+          >
+            <TbCloudUp size={24} />
+            Upload fleet data
           </button>
         </div>
 
